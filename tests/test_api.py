@@ -244,3 +244,19 @@ def test_openapi_schema_and_swagger_ui(client):
     assert schema.status_code == 200
     assert b"/api/v1/series/" in schema.content
     assert client.get("/api/docs/").status_code == 200
+
+
+@pytest.mark.parametrize("page_size", ["abc", "0", "-5", "1001", "2.5"])
+def test_bad_page_size_is_a_400_not_silently_ignored(client, page_size):
+    response = client.get(f"{API}/observations/", {"page_size": page_size})
+    assert response.status_code == 400
+    assert "page_size" in response.json()
+
+
+def test_compare_query_count_does_not_grow_with_regions(client, django_assert_num_queries):
+    sync_catalog()
+    with django_assert_num_queries(1):
+        client.get(
+            f"{API}/compare/",
+            {"regions": "UK,Wales,Scotland,England", "parameter": "Tmax", "period": "ann"},
+        )
