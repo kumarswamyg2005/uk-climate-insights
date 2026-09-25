@@ -8,7 +8,7 @@ services:
       POSTGRES_PASSWORD: climate # local-only credentials; production uses a managed database URL
       POSTGRES_DB: climate
     ports:
-      - "5432:5432"
+      - "${DB_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -16,6 +16,23 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+
+  web:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://climate:climate@db:5432/climate
+      SECRET_KEY: local-compose-only-not-a-secret
+      ALLOWED_HOSTS: localhost,127.0.0.1
+      HTTPS_ONLY: "False" # plain http on localhost; Render terminates TLS in production
+      GROQ_API_KEY: ${GROQ_API_KEY:-} # read from your .env if present; chat returns 503 without it
+      DJANGO_SUPERUSER_USERNAME: ${DJANGO_SUPERUSER_USERNAME:-}
+      DJANGO_SUPERUSER_EMAIL: ${DJANGO_SUPERUSER_EMAIL:-}
+      DJANGO_SUPERUSER_PASSWORD: ${DJANGO_SUPERUSER_PASSWORD:-}
+    ports:
+      - "${WEB_PORT:-8000}:8000"
 
 volumes:
   pgdata:
