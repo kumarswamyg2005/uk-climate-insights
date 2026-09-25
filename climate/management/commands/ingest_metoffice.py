@@ -37,14 +37,18 @@ class Command(BaseCommand):
             "--delay", type=float, help="seconds between requests (default: settings)"
         )
         parser.add_argument(
-            "--if-empty",
+            "--if-needed",
             action="store_true",
-            help="do nothing if the database already has observations (container first boot)",
+            help="do nothing once an ingest has completed (container boot). A run that was "
+            "interrupted or failed doesn't count, so the next boot tries again.",
         )
 
-    def handle(self, *args, regions=None, parameters=None, delay=None, if_empty=False, **options):
-        if if_empty and Observation.objects.exists():
-            self.stdout.write("Database already has observations; skipping the ingest.")
+    def handle(self, *args, regions=None, parameters=None, delay=None, if_needed=False, **options):
+        completed = IngestionRun.objects.filter(
+            status__in=[IngestionRun.Status.SUCCESS, IngestionRun.Status.PARTIAL]
+        )
+        if if_needed and completed.exists():
+            self.stdout.write("An ingest has already completed; skipping.")
             return
         run = run_ingest(regions, parameters, delay=delay)
         seconds = (run.finished_at - run.started_at).total_seconds()

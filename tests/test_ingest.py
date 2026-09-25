@@ -246,17 +246,28 @@ def test_admin_button_is_post_only_and_superuser_only(admin_client, client, djan
     start.assert_not_called()
 
 
-def test_if_empty_skips_when_data_exists(capsys):
-    from .factories import ObservationFactory
-
-    ObservationFactory()
+@pytest.mark.parametrize("status", [IngestionRun.Status.SUCCESS, IngestionRun.Status.PARTIAL])
+def test_if_needed_skips_once_an_ingest_has_completed(capsys, status):
+    IngestionRun.objects.create(status=status, finished_at=timezone.now())
     with mock.patch("climate.management.commands.ingest_metoffice.run_ingest") as run:
-        call_command("ingest_metoffice", "--if-empty")
+        call_command("ingest_metoffice", "--if-needed")
     run.assert_not_called()
-    assert "already has observations" in capsys.readouterr().out
+    assert "already completed" in capsys.readouterr().out
 
 
-def test_if_empty_ingests_an_empty_database(metoffice, capsys):
+@pytest.mark.parametrize(
+    "earlier",
+    [
+        None,  # empty database: first boot
+        {"status": IngestionRun.Status.RUNNING},  # container killed mid-ingest
+        {"status": IngestionRun.Status.FAILED, "finished_at": "now"},  # Met Office was down
+    ],
+)
+def test_if_needed_ingests_until_one_completes(metoffice, earlier):
+    if earlier:
+        if earlier.get("finished_at"):
+            earlier = {**earlier, "finished_at": timezone.now()}
+        IngestionRun.objects.create(**earlier)
     serve(metoffice, "Tmax", "UK", body=TMAX_UK)
-    call_command("ingest_metoffice", "--if-empty", "--regions", "UK", "--parameters", "Tmax")
+    call_command("ingest_metoffice", "--if-needed", "--regions", "UK", "--parameters", "Tmax")
     assert Observation.objects.count() == TMAX_UK_ROWS
