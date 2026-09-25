@@ -49,8 +49,9 @@ cd uk-climate-insights
 docker compose up --build
 ```
 
-The first boot migrates the database and downloads all 119 Met Office files (about two minutes,
-279,208 rows), then serves on http://localhost:8000. Later boots skip the download.
+The app is up on http://localhost:8000 within seconds. On the first boot it downloads all 119 Met
+Office files in the background (about two minutes, 279,208 rows), so charts fill in as the data
+lands. Later boots skip the download once an ingest has completed.
 
 - Chat: put `GROQ_API_KEY=...` in a `.env` file next to `docker-compose.yml` (no space after `=`).
   Without it the chat answers 503 and everything else works.
