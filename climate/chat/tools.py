@@ -114,7 +114,7 @@ def run_tool(name: str, arguments: str) -> tuple[dict, Any, bool]:
         return {}, {"error": f"Unknown tool {name!r}. Available: {', '.join(FUNCTIONS)}."}, False
     try:
         args = json.loads(arguments or "{}")
-    except json.JSONDecodeError:
+    except (ValueError, RecursionError):  # malformed, or nested deeply enough to blow the stack
         return {}, {"error": "Arguments must be a JSON object."}, False
     if not isinstance(args, dict):
         return {}, {"error": "Arguments must be a JSON object."}, False

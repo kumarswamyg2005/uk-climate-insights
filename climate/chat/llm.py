@@ -58,6 +58,8 @@ class GroqClient:
         else:
             raise LLMUnavailable("The chat service is busy. Try again in a minute.") from last_error
 
+        if not response.choices:
+            raise LLMUnavailable("The chat service isn't available right now.")
         message = response.choices[0].message
         return LLMReply(
             content=message.content,

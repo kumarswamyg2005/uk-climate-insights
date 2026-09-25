@@ -91,6 +91,7 @@ def test_tool_runs_the_shared_query(scotland_rain):
         ("drop_table", "{}", "Unknown tool 'drop_table'"),
         ("get_series", "not json", "must be a JSON object"),
         ("get_series", "[1, 2]", "must be a JSON object"),
+        ("get_series", "[" * 100_000, "must be a JSON object"),
         (
             "get_series",
             json.dumps({"region": "Atlantis", "parameter": "Rainfall", "period": "ann"}),
@@ -280,6 +281,16 @@ def test_groq_failures_become_llm_unavailable(error, message):
         chat=SimpleNamespace(completions=SimpleNamespace(create=create))
     )
     with pytest.raises(LLMUnavailable, match=message):
+        client.complete([], [])
+
+
+def test_groq_reply_without_choices_is_unavailable_not_a_crash():
+    client = GroqClient("key", "primary", 5)
+    create = mock.Mock(return_value=SimpleNamespace(choices=[]))
+    client._client = SimpleNamespace(
+        chat=SimpleNamespace(completions=SimpleNamespace(create=create))
+    )
+    with pytest.raises(LLMUnavailable):
         client.complete([], [])
 
 
