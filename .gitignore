@@ -1,0 +1,21 @@
+# secrets
+.env
+
+# python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# django
+staticfiles/
+*.sqlite3
+
+# os / editors
+.DS_Store
+.idea/
+.vscode/
