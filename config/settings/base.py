@@ -75,6 +75,9 @@ STORAGES = {
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+# Seconds between Met Office requests during an ingest (invariant 14).
+METOFFICE_REQUEST_DELAY = env.float("METOFFICE_REQUEST_DELAY", default=0.5)
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
