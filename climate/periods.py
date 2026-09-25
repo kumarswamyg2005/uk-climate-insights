@@ -5,24 +5,15 @@ Winter ("win") is Dec of the previous year + Jan + Feb, and is labelled with the
 day-weighted mean of the three months, the other parameters are the sum.
 """
 
+import calendar
+
 MONTH_PERIODS = ("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")
 SEASON_PERIODS = ("win", "spr", "sum", "aut")
 ANNUAL_PERIOD = "ann"
 PERIOD_ORDER = (*MONTH_PERIODS, *SEASON_PERIODS, ANNUAL_PERIOD)
 
 PERIOD_LABELS = {
-    "jan": "January",
-    "feb": "February",
-    "mar": "March",
-    "apr": "April",
-    "may": "May",
-    "jun": "June",
-    "jul": "July",
-    "aug": "August",
-    "sep": "September",
-    "oct": "October",
-    "nov": "November",
-    "dec": "December",
+    **{code: calendar.month_name[i] for i, code in enumerate(MONTH_PERIODS, start=1)},
     "win": "Winter (Dec-Feb)",
     "spr": "Spring (Mar-May)",
     "sum": "Summer (Jun-Aug)",

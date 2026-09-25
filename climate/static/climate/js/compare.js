@@ -45,11 +45,6 @@
     $("regions-hint").hidden = !full;
   }
 
-  function nameOf(code) {
-    const box = picks.querySelector(`input[value="${CSS.escape(code)}"]`);
-    return box ? box.parentElement.textContent.trim() : code;
-  }
-
   // --- loading ----------------------------------------------------------------------------
 
   async function load() {
@@ -72,6 +67,9 @@
     );
 
     if (!regions.length) {
+      $("series-title").textContent = "Compare regions";
+      $("series-unit").textContent = "";
+      $("series-note").hidden = true;
       showStatus("Pick at least one region to compare.", false);
       return;
     }
@@ -96,20 +94,7 @@
   // --- rendering --------------------------------------------------------------------------
 
   function showStatus(message, isError) {
-    const status = $("status");
-    status.textContent = message;
-    status.classList.toggle("is-error", !!isError);
-    if (isError) {
-      const retry = document.createElement("button");
-      retry.type = "button";
-      retry.className = "button";
-      retry.textContent = "Try again";
-      retry.addEventListener("click", load);
-      status.append(document.createElement("br"), retry);
-    }
-    status.hidden = false;
-    for (const id of ["chart-wrap", "legend", "table-wrap"]) $(id).hidden = true;
-    results.classList.remove("has-data");
+    C.showStatus({ message, isError, retry: load, hide: ["chart-wrap", "legend", "table-wrap"] });
   }
 
   function render() {

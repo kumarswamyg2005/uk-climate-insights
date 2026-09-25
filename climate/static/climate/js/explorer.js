@@ -89,20 +89,7 @@
   // --- rendering --------------------------------------------------------------------------
 
   function showStatus(message, isError) {
-    const status = $("status");
-    status.textContent = message;
-    status.classList.toggle("is-error", !!isError);
-    if (isError) {
-      const retry = document.createElement("button");
-      retry.type = "button";
-      retry.className = "button";
-      retry.textContent = "Try again";
-      retry.addEventListener("click", load);
-      status.append(document.createElement("br"), retry);
-    }
-    status.hidden = false;
-    for (const id of ["chart-wrap", "stats", "table-wrap"]) $(id).hidden = true;
-    results.classList.remove("has-data");
+    C.showStatus({ message, isError, retry: load, hide: ["chart-wrap", "stats", "table-wrap"] });
     $("csv-link").setAttribute("aria-disabled", "true");
   }
 
