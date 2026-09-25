@@ -36,8 +36,16 @@ class Command(BaseCommand):
         parser.add_argument(
             "--delay", type=float, help="seconds between requests (default: settings)"
         )
+        parser.add_argument(
+            "--if-empty",
+            action="store_true",
+            help="do nothing if the database already has observations (container first boot)",
+        )
 
-    def handle(self, *args, regions=None, parameters=None, delay=None, **options):
+    def handle(self, *args, regions=None, parameters=None, delay=None, if_empty=False, **options):
+        if if_empty and Observation.objects.exists():
+            self.stdout.write("Database already has observations; skipping the ingest.")
+            return
         run = run_ingest(regions, parameters, delay=delay)
         seconds = (run.finished_at - run.started_at).total_seconds()
 

@@ -244,3 +244,19 @@ def test_admin_button_is_post_only_and_superuser_only(admin_client, client, djan
     with mock.patch("climate.admin.start_background_ingest") as start:
         assert client.post("/admin/climate/ingestionrun/run-ingest/").status_code == 403
     start.assert_not_called()
+
+
+def test_if_empty_skips_when_data_exists(capsys):
+    from .factories import ObservationFactory
+
+    ObservationFactory()
+    with mock.patch("climate.management.commands.ingest_metoffice.run_ingest") as run:
+        call_command("ingest_metoffice", "--if-empty")
+    run.assert_not_called()
+    assert "already has observations" in capsys.readouterr().out
+
+
+def test_if_empty_ingests_an_empty_database(metoffice, capsys):
+    serve(metoffice, "Tmax", "UK", body=TMAX_UK)
+    call_command("ingest_metoffice", "--if-empty", "--regions", "UK", "--parameters", "Tmax")
+    assert Observation.objects.count() == TMAX_UK_ROWS
