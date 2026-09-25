@@ -189,8 +189,6 @@ migrations check, a production `collectstatic`, the tests and a Docker build on 
 
 ## Known limitations and next steps
 
-- **No scheduled ingest.** The Met Office updates monthly. Today an admin runs it from `/admin/`
-  or the command line. Next: a Render cron job (paid) or GitHub Actions calling the command.
 - **The admin ingest runs in a background thread** and dies if the worker restarts. A job runner
   would make it durable.
 - **Free tiers:** the web service sleeps after 15 idle minutes (about a minute to wake), Neon
@@ -207,8 +205,13 @@ migrations check, a production `collectstatic`, the tests and a Docker build on 
 
 ## Operations
 
-- **Re-ingest:** `/admin/climate/ingestionrun/` → **Run ingest now**, or
-  `python manage.py ingest_metoffice`. Re-running is safe.
+- **Monthly refresh:** [`.github/workflows/ingest.yml`](.github/workflows/ingest.yml) runs the
+  ingest against the production database at 06:17 UTC on the 2nd of each month (the Met Office
+  updates on the 1st). Anything short of 119/119 files fails the job, and GitHub emails the owner.
+  It needs one repository secret, `DATABASE_URL` (the Neon connection string).
+- **Re-ingest now:** GitHub → Actions → **Monthly Met Office ingest** → **Run workflow**; or
+  `/admin/climate/ingestionrun/` → **Run ingest now**; or `python manage.py ingest_metoffice`.
+  Re-running is always safe.
 - **Rotate the Groq key:** create a new key at console.groq.com and replace `GROQ_API_KEY` in
   Render → Environment (the service redeploys). Then delete the old key.
 - **Deploy:** push to `main`. Render rebuilds the Docker image from `render.yaml`.

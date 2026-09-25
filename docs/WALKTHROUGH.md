@@ -191,7 +191,12 @@ downloads the data (about 2 minutes).
 
 **Test:** `docker compose up -d db`, then `pytest --cov`, then `ruff check .`.
 
-**Re-ingest:** in `/admin/climate/ingestionrun/` press **Run ingest now**, or run
+**Monthly refresh:** `.github/workflows/ingest.yml` runs `ingest_metoffice --strict` against the
+production database on the 2nd of each month. A partial or failed run fails the job, and GitHub
+emails the repository owner. It needs the `DATABASE_URL` repository secret.
+
+**Re-ingest:** GitHub → Actions → Monthly Met Office ingest → Run workflow; or in
+`/admin/climate/ingestionrun/` press **Run ingest now**; or run
 `python manage.py ingest_metoffice`. It's safe to re-run at any time. To refresh one series, use
 `--regions Wales --parameters Rainfall`.
 
@@ -208,8 +213,6 @@ Groq. For a local `.env`, write `GROQ_API_KEY=gsk_...` with no space after `=`.
 
 ## 8. Known limitations, and what to do with more time
 
-- **Scheduled ingest.** The data changes monthly. Add a cron job (Render cron or a GitHub Actions
-  schedule) that runs `ingest_metoffice`, and alert if the run isn't `success`.
 - **Durable background jobs.** The admin button starts a thread. A job runner (RQ or Celery) would
   survive restarts and show progress properly.
 - **Caching.** Responses only change after an ingest. An ETag based on the latest run id, or a
@@ -319,9 +322,10 @@ Checked on the live site: requests that each forged a different `X-Forwarded-For
 throttled at the limit, so a client can't bypass it. Counters are in process memory, which is exact
 with one gunicorn process; several processes would need Redis.
 
-**18. How would you keep the data up to date and scale this?**
-A monthly cron runs the ingest, with an alert on non-`success` runs, and conditional GETs skip
-unchanged files. For read load: HTTP caching keyed on the last run, then more web instances with
+**18. How do you keep the data up to date, and how would you scale this?**
+A GitHub Actions schedule runs the ingest on the 2nd of each month (the Met Office updates on the
+1st). `--strict` fails the job on anything short of 119/119 files, so GitHub emails the owner.
+Next would be conditional GETs to skip unchanged files. For read load: HTTP caching keyed on the last run, then more web instances with
 Redis for the throttle. The database is tiny (92 MB), so it isn't the bottleneck.
 
 **19. What does "trend per decade" mean, and is it fair?**
