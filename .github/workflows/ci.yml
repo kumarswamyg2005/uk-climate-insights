@@ -41,5 +41,10 @@ jobs:
         run: ruff format --check .
       - name: Migrations are up to date
         run: python manage.py makemigrations --check --dry-run
+      - name: Static files build with production (manifest) storage
+        run: python manage.py collectstatic --noinput
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.prod
+          SECRET_KEY: ci-only-not-secret
       - name: Tests
         run: pytest --cov --cov-report=term-missing
