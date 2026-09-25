@@ -189,6 +189,7 @@ erDiagram
         int files_succeeded
         int rows_upserted
         json errors "list of url + error"
+        datetime source_updated_at "Met Office Last updated stamp"
     }
     Observation {
         bigint region_id FK
@@ -225,10 +226,11 @@ All under `/api/v1/`, GET-only except `POST /chat/`. Full contract at `/api/docs
 | `regions/`, `parameters/` | lookup lists; parameters include unit and available year range |
 | `observations/` | paginated, filterable rows (django-filter) |
 | `series/`, `series.csv` | chart payload / CSV for one region x parameter x period |
-| `summary/` | min, max (with years), mean, latest, count, linear trend per decade |
+| `summary/` | min, max (with every tied year), mean, latest, count, linear trend per decade |
+| `extremes/` | ranked highest or lowest years (the chat's `get_extreme`, exposed for reproducibility) |
 | `compare/` | up to 4 regions aligned on a shared year axis |
 | `chat/` | grounded LLM answer with the tool calls and data used |
-| `ingestion-runs/latest/` | last completed run, for the "data updated" footer |
+| `ingestion-runs/latest/` | last run that stored data, with the Met Office "Last updated" stamp |
 
 Bad query parameters return 400 with the valid values listed. An empty result is 200 with an empty
 list, never 404.
@@ -244,7 +246,28 @@ list, never 404.
 | Groq missing key / 429 / timeout | `POST /chat/` returns 503; the rest of the app is unaffected |
 | DB down | `/healthz` returns 503 so the platform restarts or alerts |
 
-## 7. Load estimate
+## 7. Deployment
+
+```mermaid
+flowchart LR
+    GH[GitHub main] -->|push| R[Render: builds Dockerfile]
+    subgraph Render["Render free web service (Frankfurt)"]
+        E[entrypoint.sh: migrate, seed ingest if empty, gunicorn 1x4 threads]
+    end
+    R --> E
+    E -->|TLS, DATABASE_URL| N[(Neon Postgres 16, eu-central-1)]
+    E -->|HTTPS| MO[(Met Office)]
+    E -->|HTTPS| G[Groq API]
+    U((Browser)) -->|HTTPS| Render
+```
+
+The image is built once per push, with static files collected at build time and served by
+WhiteNoise with immutable caching. Configuration comes only from environment variables in
+production. Secrets (`SECRET_KEY`, `DATABASE_URL`, `GROQ_API_KEY`) live in Render's environment,
+never in the repo. See [ADR-004](adr/004-render-web-neon-postgres.md) for why the database is on
+Neon.
+
+## 8. Load estimate
 
 - Storage is about 180 B/row x 279k, so ~50 MB of heap plus two B-tree indexes. That's well under
   1 GB for decades.
@@ -256,7 +279,7 @@ list, never 404.
 A single small instance is enough. The bottleneck is the LLM provider's rate limit, not Django or
 Postgres.
 
-## 8. Trade-offs
+## 9. Trade-offs
 
 | Decision | Chosen | Rejected | Why |
 |---|---|---|---|
@@ -265,8 +288,10 @@ Postgres.
 | Chat | tool calling over validated ORM functions | text-to-SQL | the model can't read or write anything the API can't; args are whitelisted ([ADR 003](adr/003-llm-tool-calling-vs-text-to-sql.md)) |
 | Parser | pure Python, column-position based | pandas `read_fwf` / whitespace split | the partial current year has blank cells; a whitespace split silently shifts values into the wrong month |
 | Ingest trigger | management command + admin action (background thread) | Celery + beat | data changes monthly; a queue adds two services for one job a month |
+| LLM model | `openai/gpt-oss-120b` on Groq, fallback `openai/gpt-oss-20b` | `llama-3.3-70b-versatile` | verified with a live tool-calling request; the Llama model returned 404 for this account; the fallback has its own free-tier quota |
+| Hosting | Render web + Neon Postgres | Render Postgres, EC2 | free Render Postgres is deleted 30 + 14 days after creation ([ADR-004](adr/004-render-web-neon-postgres.md)) |
 
-## 9. What I'd revisit as it grows
+## 10. What I'd revisit as it grows
 
 - **Scheduled ingest**: a Render cron job (or Celery beat) on the 2nd of each month, instead of manual runs.
 - **Caching**: responses only change after an ingest, so HTTP `Cache-Control` / ETag keyed on the
