@@ -10,10 +10,10 @@ where months haven't happened yet, so a plain whitespace split moves the winter 
 without any error. The chat runs on Groq's free tier, which allows about three questions a minute.
 The table below maps each evaluation item to the code.
 
-**Live:** the public URL is added here when the Render deployment is verified (step 13 of the
-build). Free tier: the first request after 15 idle minutes takes about a minute to wake the service.
+**Live:** https://uk-climate-insights.onrender.com (free tier: the first request after 15 idle
+minutes takes about a minute to wake the service)
 
-**API docs:** `/api/docs/` on any running instance ·
+**API docs:** [/api/docs/](https://uk-climate-insights.onrender.com/api/docs/) ·
 **Architecture:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) ·
 **Decisions:** [docs/adr/](docs/adr/) · **Tests:** [docs/TESTING.md](docs/TESTING.md)
 
@@ -113,7 +113,7 @@ return 400 with the valid values listed.
 | `GET /healthz` | liveness plus a database round-trip |
 
 ```bash
-BASE=http://localhost:8000   # or the live URL above
+BASE=https://uk-climate-insights.onrender.com   # or http://localhost:8000
 
 curl "$BASE/api/v1/summary/?region=Scotland&parameter=Rainfall&period=ann"
 curl "$BASE/api/v1/extremes/?region=Wales&parameter=Tmean&period=win&kind=min&limit=3"

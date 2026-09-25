@@ -314,8 +314,10 @@ patterns. Production reads settings only from real environment variables, refuse
 
 **17. How does rate limiting work behind Render's proxy?**
 DRF's `ScopedRateThrottle` keys on client IP. Behind a proxy, the socket address is the proxy's,
-so `NUM_PROXIES=1` makes DRF take the client address from `X-Forwarded-For`. Counters are in
-process memory, which is exact with one gunicorn process; several processes would need Redis.
+so `NUM_PROXIES=1` makes DRF use the last `X-Forwarded-For` entry, the one Render's proxy adds.
+Checked on the live site: requests that each forged a different `X-Forwarded-For` were still
+throttled at the limit, so a client can't bypass it. Counters are in process memory, which is exact
+with one gunicorn process; several processes would need Redis.
 
 **18. How would you keep the data up to date and scale this?**
 A monthly cron runs the ingest, with an alert on non-`success` runs, and conditional GETs skip
@@ -336,7 +338,8 @@ answer (Wales's coldest winter, 1963, -0.45 °C) was checked against the raw Met
 
 ## 10. Three-minute demo
 
-1. **Explorer (45 s).** Open the live URL. "One stripe per year, UK mean temperature since 1884.
+1. **Explorer (45 s).** Open https://uk-climate-insights.onrender.com (open it a minute early: the
+   free tier sleeps after 15 idle minutes). "One stripe per year, UK mean temperature since 1884.
    The red end is the last decade." Switch to Scotland, Rainfall, Annual, and tick the rolling
    mean. Point at the Wettest row and the trend. Mention that the URL just changed, so you can
    share this exact view.
