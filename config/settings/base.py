@@ -22,6 +22,9 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "rest_framework",
+    "django_filters",
+    "drf_spectacular",
     "climate",
 ]
 
@@ -74,6 +77,29 @@ STORAGES = {
 }
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+REST_FRAMEWORK = {
+    # Public, anonymous, read-only API: no sessions or tokens to authenticate against.
+    "DEFAULT_AUTHENTICATION_CLASSES": [],
+    "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.AllowAny"],
+    "DEFAULT_RENDERER_CLASSES": [
+        "rest_framework.renderers.JSONRenderer",
+        "rest_framework.renderers.BrowsableAPIRenderer",
+    ],
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "COERCE_DECIMAL_TO_STRING": False,  # values are JSON numbers
+}
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "UK Climate Insights API",
+    "DESCRIPTION": (
+        "Read-only access to the Met Office UK and regional climate series (monthly, seasonal "
+        "and annual values per region). Contains Met Office data © Crown copyright, "
+        "Open Government Licence v3.0."
+    ),
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+}
 
 # Seconds between Met Office requests during an ingest (invariant 14).
 METOFFICE_REQUEST_DELAY = env.float("METOFFICE_REQUEST_DELAY", default=0.5)
