@@ -1,6 +1,7 @@
 """The LLM provider behind a small interface, so it can be swapped (and faked in tests)."""
 
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Protocol
 
 import groq
@@ -44,7 +45,7 @@ class GroqClient:
             raise LLMUnavailable(NOT_CONFIGURED)
         self.model = model  # the model that produced the latest reply
         self._models = [m for m in (model, fallback_model) if m]
-        self._client = groq.Groq(api_key=api_key, timeout=timeout, max_retries=0)
+        self._client = _sdk(api_key, timeout)
 
     def complete(self, messages: list[dict], tools: list[dict]) -> LLMReply:
         for model in self._models:
@@ -85,6 +86,12 @@ class GroqClient:
             raise LLMUnavailable("The chat service took too long to answer. Try again.") from exc
         except groq.APIError as exc:  # connection errors, auth, 5xx, malformed tool calls
             raise LLMUnavailable("The chat service isn't available right now.") from exc
+
+
+@lru_cache(maxsize=4)
+def _sdk(api_key: str, timeout: float) -> groq.Groq:
+    """One SDK client (and HTTP connection pool) per key, reused across requests."""
+    return groq.Groq(api_key=api_key, timeout=timeout, max_retries=0)
 
 
 def default_client() -> LLMClient:
