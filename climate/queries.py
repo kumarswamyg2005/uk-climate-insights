@@ -6,14 +6,17 @@ can reach the ORM with unchecked input. Bad input raises rest_framework Validati
 turns into HTTP 400 and the chat service turns into an error message for the model.
 """
 
+import statistics
 from collections.abc import Mapping
 from typing import Any
 
 from django.db.models import Max, Min
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from .catalog import PARAMETER_CODES, PARAMETERS, REGION_CODES, REGIONS
-from .invariants import MAX_YEAR, MIN_YEAR
+from .invariants import MAX_COMPARE_REGIONS, MAX_YEAR, MIN_YEAR
 from .models import Observation, Parameter, Region
 from .periods import PERIOD_LABELS, PERIOD_ORDER
 
@@ -43,6 +46,46 @@ class YearRangeQuery(serializers.Serializer):
 
 class SeriesQuery(YearRangeQuery):
     region = code_field(REGION_CODES, "region")
+    parameter = code_field(PARAMETER_CODES, "parameter")
+    period = code_field(PERIOD_ORDER, "period")
+
+
+class ExtremeQuery(SeriesQuery):
+    kind = serializers.ChoiceField(
+        choices=["max", "min"],
+        error_messages={"invalid_choice": 'Unknown kind "{input}". Valid: max, min.'},
+    )
+    limit = serializers.IntegerField(required=False, default=5, min_value=1, max_value=20)
+
+
+@extend_schema_field(OpenApiTypes.STR)
+class RegionListField(serializers.Field):
+    """Up to MAX_COMPARE_REGIONS region codes, as "UK,Wales" (query string) or a JSON list."""
+
+    def to_internal_value(self, data):
+        items = data.split(",") if isinstance(data, str) else data
+        if not isinstance(items, list) or not all(isinstance(i, str) for i in items):
+            raise serializers.ValidationError("Give region codes as a comma-separated string.")
+        codes = list(dict.fromkeys(i.strip() for i in items if i.strip()))  # dedupe, keep order
+        unknown = [c for c in codes if c not in REGIONS]
+        if unknown:
+            raise serializers.ValidationError(
+                f"Unknown region(s) {', '.join(unknown)}. Valid: {', '.join(REGION_CODES)}."
+            )
+        if not codes:
+            raise serializers.ValidationError("Give at least one region.")
+        if len(codes) > MAX_COMPARE_REGIONS:
+            raise serializers.ValidationError(
+                f"Compare at most {MAX_COMPARE_REGIONS} regions (got {len(codes)})."
+            )
+        return codes
+
+    def to_representation(self, value):
+        return value
+
+
+class CompareQuery(YearRangeQuery):
+    regions = RegionListField(help_text="1-4 comma-separated region codes, e.g. England,Wales")
     parameter = code_field(PARAMETER_CODES, "parameter")
     period = code_field(PERIOD_ORDER, "period")
 
@@ -101,4 +144,75 @@ def get_series(params: Mapping[str, Any]) -> dict:
     return {
         **_describe(q["region"], q["parameter"], q["period"]),
         "points": [[year, float(value)] for year, value in rows],
+    }
+
+
+def get_summary(params: Mapping[str, Any]) -> dict:
+    """Count, mean, extremes (with every tied year), latest value and linear trend per decade."""
+    q = validated(SeriesQuery, params)
+    points = [(year, float(value)) for year, value in _rows(**q)]
+    summary = {
+        **_describe(q["region"], q["parameter"], q["period"]),
+        "count": len(points),
+        "first_year": None,
+        "last_year": None,
+        "mean": None,
+        "min": None,
+        "max": None,
+        "latest": None,
+        "trend_per_decade": None,
+    }
+    if not points:
+        return summary
+
+    years = [year for year, _ in points]
+    values = [value for _, value in points]
+    low, high = min(values), max(values)
+    summary.update(
+        first_year=years[0],
+        last_year=years[-1],
+        mean=round(statistics.fmean(values), 2),
+        min={"value": low, "years": [y for y, v in points if v == low]},
+        max={"value": high, "years": [y for y, v in points if v == high]},
+        latest={"year": years[-1], "value": values[-1]},
+    )
+    if len(points) >= 2:
+        slope, _ = statistics.linear_regression(years, values)  # ordinary least squares
+        summary["trend_per_decade"] = round(slope * 10, 3)
+    return summary
+
+
+def get_extreme(params: Mapping[str, Any]) -> dict:
+    """The `limit` highest (kind=max) or lowest (kind=min) years, ties broken by earlier year."""
+    q = validated(ExtremeQuery, params)
+    kind, limit = q.pop("kind"), q.pop("limit")
+    rows = _rows(**q).order_by("-value" if kind == "max" else "value", "year")[:limit]
+    return {
+        **_describe(q["region"], q["parameter"], q["period"]),
+        "kind": kind,
+        "rows": [{"year": year, "value": float(value)} for year, value in rows],
+    }
+
+
+def compare_regions(params: Mapping[str, Any]) -> dict:
+    """Several regions' series on one shared year axis; null where a region has no value."""
+    q = validated(CompareQuery, params)
+    rows = Observation.objects.filter(
+        region__code__in=q["regions"], parameter__code=q["parameter"], period=q["period"]
+    )
+    if "year_from" in q:
+        rows = rows.filter(year__gte=q["year_from"])
+    if "year_to" in q:
+        rows = rows.filter(year__lte=q["year_to"])
+
+    by_region: dict[str, dict[int, float]] = {code: {} for code in q["regions"]}
+    for code, year, value in rows.values_list("region__code", "year", "value"):
+        by_region[code][year] = float(value)
+    years = sorted(set().union(*by_region.values()))
+    described = _describe(q["regions"][0], q["parameter"], q["period"])
+    return {
+        **{k: v for k, v in described.items() if not k.startswith("region")},
+        "regions": [{"code": code, "name": REGIONS[code]} for code in q["regions"]],
+        "years": years,
+        "values": {code: [series.get(y) for y in years] for code, series in by_region.items()},
     }
