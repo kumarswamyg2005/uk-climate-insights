@@ -1,0 +1,65 @@
+{% extends "climate/base.html" %}
+
+{% block title %}About · UK Climate Insights{% endblock %}
+
+{% block content %}
+<article class="prose">
+  <h1>About the data</h1>
+  <p>
+    Every number on this site comes from the Met Office
+    <a href="{{ source_url }}">UK and regional series</a>, published by the Met Office National
+    Climate Information Centre. Each series is an average over a whole region, calculated from the
+    1&nbsp;km HadUK-Grid dataset built from the UK land-surface station network. The values describe
+    regions, not individual weather stations.
+  </p>
+
+  <h2>What's covered</h2>
+  <table class="data-table coverage">
+    <caption class="visually-hidden">Measures, units and the years held in the database</caption>
+    <thead><tr><th scope="col">Measure</th><th scope="col">Unit</th><th scope="col">Years</th><th scope="col">Season and annual values</th></tr></thead>
+    <tbody>
+      {% for p in coverage %}
+        <tr>
+          <td>{{ p.name }}</td>
+          <td>{{ p.unit }}</td>
+          <td class="num">{% if p.first_year %}{{ p.first_year }}–{{ p.last_year }}{% else %}Not loaded yet{% endif %}</td>
+          <td>{% if p.unit == "°C" %}Mean of the months{% else %}Total of the months{% endif %}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="4">No data has been loaded yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p>
+    There are {{ regions|length }} regions, from the whole UK down to areas such as East Anglia and
+    Scotland&nbsp;N. The Met Office publishes
+    <a href="https://www.metoffice.gov.uk/research/climate/maps-and-data/about/regions-map">a map of the regions</a>.
+  </p>
+
+  <h2>Reading the values</h2>
+  <ul>
+    <li><strong>Winter spans two calendar years.</strong> Winter 2026 is December 2025 plus January and February 2026, so the first year of every series has no winter value.</li>
+    <li><strong>The current year is incomplete.</strong> Months that haven't happened yet are simply absent, as are the autumn and annual values until the year ends. Recent months are provisional, and the Met Office may revise them.</li>
+    <li><strong>A missing value is never shown as zero.</strong> A zero on this site is a real zero, such as a July with no air frost.</li>
+    <li><strong>Seasonal and annual temperatures are day-weighted means of the months</strong>, and rainfall, sunshine and day counts are totals.</li>
+    <li><strong>The trend is a straight-line fit</strong> (least squares) over the years you select, shown per decade. It summarises the direction of change and doesn't forecast anything.</li>
+  </ul>
+
+  <h2>How this site works</h2>
+  <p>
+    An ingest job downloads the {{ regions|length }} regional files for each measure from the Met
+    Office, parses the fixed-width text and stores every value in PostgreSQL, updating values that the
+    Met Office has revised. The explorer and compare pages draw their charts from this site's own
+    public API, which you can use directly:
+  </p>
+  <pre><code>curl "{{ request.scheme }}://{{ request.get_host }}/api/v1/summary/?region=Scotland&amp;parameter=Rainfall&amp;period=ann"</code></pre>
+  <p>The full list of endpoints, with a form to try each one, is in the <a href="{% url 'docs' %}">API documentation</a>.</p>
+
+  <h2>Licence</h2>
+  <p>
+    Contains Met Office data © Crown copyright {% now "Y" %}, licensed under the
+    <a href="https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/">Open Government Licence v3.0</a>.
+    This site is an independent project and isn't affiliated with or endorsed by the Met Office.
+  </p>
+</article>
+{% endblock %}
