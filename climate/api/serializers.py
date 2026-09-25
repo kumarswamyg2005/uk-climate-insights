@@ -2,6 +2,11 @@
 
 from rest_framework import serializers
 
+from climate.invariants import (
+    CHAT_MAX_HISTORY_CHARS,
+    CHAT_MAX_HISTORY_MESSAGES,
+    CHAT_MAX_MESSAGE_CHARS,
+)
 from climate.models import IngestionRun, Observation
 
 
@@ -125,3 +130,32 @@ class CompareSerializer(serializers.Serializer):
         child=serializers.ListField(child=serializers.FloatField(allow_null=True)),
         help_text="region code -> values aligned with `years` (null where missing)",
     )
+
+
+class ChatTurnSerializer(serializers.Serializer):
+    # Only these two roles: a client can't smuggle in "system" or "tool" messages.
+    role = serializers.ChoiceField(choices=["user", "assistant"])
+    content = serializers.CharField(max_length=CHAT_MAX_HISTORY_CHARS)
+
+
+class ChatRequestSerializer(serializers.Serializer):
+    message = serializers.CharField(max_length=CHAT_MAX_MESSAGE_CHARS)
+    history = ChatTurnSerializer(many=True, required=False, max_length=CHAT_MAX_HISTORY_MESSAGES)
+
+
+class ChatToolCallSerializer(serializers.Serializer):
+    name = serializers.CharField()
+    args = serializers.DictField()
+
+
+class ChatDataSerializer(serializers.Serializer):
+    tool = serializers.CharField()
+    args = serializers.DictField()
+    result = serializers.JSONField(help_text="exactly what the tool returned from the database")
+
+
+class ChatResponseSerializer(serializers.Serializer):
+    answer = serializers.CharField()
+    model = serializers.CharField()
+    tool_calls = ChatToolCallSerializer(many=True)
+    data = ChatDataSerializer(many=True)

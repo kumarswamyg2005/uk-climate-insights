@@ -13,6 +13,7 @@ urlpatterns = [
     path("summary/", views.SummaryView.as_view(), name="summary"),
     path("extremes/", views.ExtremesView.as_view(), name="extremes"),
     path("compare/", views.CompareView.as_view(), name="compare"),
+    path("chat/", views.ChatView.as_view(), name="chat"),
     path(
         "ingestion-runs/latest/",
         views.LatestIngestionRunView.as_view(),

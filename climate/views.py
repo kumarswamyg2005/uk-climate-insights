@@ -4,7 +4,7 @@ from django.shortcuts import render
 
 from . import queries
 from .catalog import PARAMETERS, REGIONS, SOURCE_PAGE_URL
-from .invariants import MAX_COMPARE_REGIONS
+from .invariants import CHAT_MAX_MESSAGE_CHARS, MAX_COMPARE_REGIONS
 from .periods import MONTH_PERIODS, PERIOD_LABELS, SEASON_PERIODS
 
 DEFAULTS = {"region": "UK", "parameter": "Tmean", "period": "ann"}
@@ -37,7 +37,12 @@ def explorer(request):
     return render(
         request,
         "climate/explorer.html",
-        {**_choices(), "selected": _selected(request), "nav": "explore"},
+        {
+            **_choices(),
+            "selected": _selected(request),
+            "chat_max_chars": CHAT_MAX_MESSAGE_CHARS,
+            "nav": "explore",
+        },
     )
 
 

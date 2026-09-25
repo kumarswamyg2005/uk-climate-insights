@@ -514,6 +514,75 @@ fieldset {
   width: 100%;
 }
 
+/* --- chat ------------------------------------------------------------------------------ */
+
+.chat {
+  border-top: 1px solid var(--rule);
+  padding: 24px var(--gutter) 32px;
+}
+.chat-form {
+  display: flex;
+  gap: 8px;
+  max-width: 72ch;
+}
+.chat-form input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--slate);
+  border-radius: 4px;
+  padding: 6px 10px;
+  min-height: 44px;
+}
+.chat .hint {
+  margin-top: 8px;
+  max-width: 72ch;
+}
+.chat-log {
+  list-style: none;
+  padding: 0;
+  margin: 16px 0 0;
+  max-width: 72ch;
+}
+.chat-log > li {
+  padding: 12px 0;
+  border-top: 1px solid var(--rule);
+}
+.chat-question {
+  font-weight: 700;
+  margin: 0 0 4px;
+}
+.chat-answer {
+  margin: 0;
+}
+.chat-answer.is-pending {
+  color: var(--slate);
+}
+.chat-answer.is-error {
+  color: var(--danger);
+}
+.chat-data {
+  margin-top: 8px;
+  font-size: var(--step-0);
+}
+.chat-data summary {
+  color: var(--slate);
+  cursor: pointer;
+}
+.chat-data h3 {
+  font-family: var(--font-body);
+  font-size: var(--step-0);
+  font-weight: 700;
+  margin: 12px 0 4px;
+}
+.chat-data pre {
+  white-space: pre-wrap;
+  margin: 0;
+  font-size: var(--step-0);
+}
+
 .filters-toggle {
   display: none; /* only shown on narrow screens */
 }

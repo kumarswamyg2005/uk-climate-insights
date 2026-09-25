@@ -30,5 +30,8 @@ MAX_YEAR = 2100
 MAX_COMPARE_REGIONS = 4
 
 CHAT_MAX_MESSAGE_CHARS = 500
-CHAT_MAX_HISTORY_MESSAGES = 10
+# Kept small because the free Groq tier allows ~8k tokens a minute per model.
+CHAT_MAX_HISTORY_MESSAGES = 6
+CHAT_MAX_HISTORY_CHARS = 1000
 CHAT_MAX_TOOL_ROUNDS = 5
+CHAT_DEADLINE_SECONDS = 30  # stop starting new LLM rounds after this; gunicorn times out at 60

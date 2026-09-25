@@ -67,9 +67,25 @@
     </div>
   </section>
 </div>
+
+<section class="chat" aria-labelledby="chat-heading">
+  <h2 id="chat-heading">Ask about the data</h2>
+  <form class="chat-form" id="chat-form" data-max="{{ chat_max_chars }}">
+    <label for="chat-input" class="visually-hidden">Your question</label>
+    <input id="chat-input" name="message" type="text" maxlength="{{ chat_max_chars }}" autocomplete="off" required
+           placeholder="Which was the coldest winter in Wales?">
+    <button type="submit" class="button" id="chat-submit">Ask</button>
+  </form>
+  <p class="hint">
+    Answers come only from the Met Office data on this site, and each one shows the data it used.
+    Try "Which was the wettest year in Scotland?" or "Compare summer max temperatures in England and Wales since 1990".
+  </p>
+  <ol class="chat-log" id="chat-log" aria-live="polite"></ol>
+</section>
 {% endblock %}
 
 {% block scripts %}
 <script src="{% static 'climate/vendor/chart.umd.min.js' %}" defer></script>
 <script src="{% static 'climate/js/explorer.js' %}" defer></script>
+<script src="{% static 'climate/js/chat.js' %}" defer></script>
 {% endblock %}

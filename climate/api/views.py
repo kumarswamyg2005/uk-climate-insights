@@ -1,4 +1,5 @@
 import csv
+from dataclasses import asdict
 
 from django.http import HttpResponse
 from django_filters.rest_framework import DjangoFilterBackend
@@ -8,13 +9,17 @@ from rest_framework import generics
 from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from climate import queries
+from climate.chat import llm, service
 from climate.models import IngestionRun, Observation
 
 from .filters import ObservationFilter
 from .serializers import (
+    ChatRequestSerializer,
+    ChatResponseSerializer,
     CompareSerializer,
     ExtremeSerializer,
     IngestionRunSerializer,
@@ -135,3 +140,33 @@ class LatestIngestionRunView(APIView):
         if run is None:
             raise NotFound("No ingestion has completed yet.")
         return Response(IngestionRunSerializer(run).data)
+
+
+class ChatView(APIView):
+    """Ask a question in plain English. The answer comes only from tool calls over this database;
+    the response lists those calls and the data they returned. The only write-method endpoint."""
+
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "chat"
+
+    @extend_schema(
+        request=ChatRequestSerializer,
+        responses={
+            200: ChatResponseSerializer,
+            400: OpenApiResponse(description="empty or too long message, bad history"),
+            429: OpenApiResponse(description="more than the per-IP rate limit"),
+            503: OpenApiResponse(description="LLM provider not configured, busy or down"),
+        },
+    )
+    def post(self, request):
+        chat = ChatRequestSerializer(data=request.data)
+        chat.is_valid(raise_exception=True)
+        try:
+            result = service.answer(
+                chat.validated_data["message"],
+                chat.validated_data.get("history", []),
+                llm.default_client(),
+            )
+        except llm.LLMUnavailable as exc:
+            return Response({"detail": str(exc)}, status=503)
+        return Response(asdict(result))
