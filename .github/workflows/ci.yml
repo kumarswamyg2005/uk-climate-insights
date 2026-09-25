@@ -48,3 +48,10 @@ jobs:
           SECRET_KEY: ci-only-not-secret
       - name: Tests
         run: pytest --cov --cov-report=term-missing
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build the production image
+        run: docker build --tag uk-climate-insights:ci .
