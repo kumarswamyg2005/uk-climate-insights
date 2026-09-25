@@ -1,13 +1,18 @@
 """Production (Render) and the docker-compose stack. Everything sensitive is required from env."""
 
 from .base import *  # noqa: F403
-from .base import ALLOWED_HOSTS, env
+from .base import ALLOWED_HOSTS, CSRF_TRUSTED_ORIGINS, env
 
 DEBUG = False
 SECRET_KEY = env("SECRET_KEY")
 
 # The container healthcheck calls http://127.0.0.1:8000/healthz from inside the container.
 ALLOWED_HOSTS = [*ALLOWED_HOSTS, "localhost", "127.0.0.1"]
+
+# Render sets this to the service's onrender.com hostname, so no URL needs hard-coding.
+if RENDER_HOST := env("RENDER_EXTERNAL_HOSTNAME", default=""):
+    ALLOWED_HOSTS.append(RENDER_HOST)
+    CSRF_TRUSTED_ORIGINS = [*CSRF_TRUSTED_ORIGINS, f"https://{RENDER_HOST}"]
 
 DATABASES = {"default": env.db("DATABASE_URL")}
 DATABASES["default"]["CONN_MAX_AGE"] = env.int("CONN_MAX_AGE", default=60)

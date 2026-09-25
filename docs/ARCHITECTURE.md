@@ -252,7 +252,7 @@ list, never 404.
 flowchart LR
     GH[GitHub main] -->|push| R[Render: builds Dockerfile]
     subgraph Render["Render free web service (Frankfurt)"]
-        E[entrypoint.sh: migrate, seed ingest if empty, gunicorn 1x4 threads]
+        E[entrypoint.sh: migrate, background ingest until one completes, gunicorn 1x4 threads]
     end
     R --> E
     E -->|TLS, DATABASE_URL| N[(Neon Postgres 16, eu-central-1)]

@@ -112,7 +112,7 @@ Two ideas hold it together:
 | `climate/parsing.py` | text to `ParsedSeries(records, preamble, last_updated)` | the graded parsing item |
 | `climate/fetching.py` | URL builder, session with User-Agent, retries | polite and resilient downloads |
 | `climate/ingest.py` | `run_ingest()`, catalog sync, upsert + prune, background runner | orchestration and failure isolation |
-| `climate/management/commands/ingest_metoffice.py` | CLI with `--regions`, `--parameters`, `--if-empty`, summary table | cron, Docker entrypoint, humans |
+| `climate/management/commands/ingest_metoffice.py` | CLI with `--regions`, `--parameters`, `--if-needed`, summary table | cron, Docker entrypoint, humans |
 | `climate/admin.py` | read-only admin plus the **Run ingest now** button | browse data and trigger a refresh |
 | `climate/queries.py` | validators and read functions: series, summary, extremes, compare | the shared read path |
 | `climate/api/` | DRF views, output and doc serializers, django-filter set, URLs | the REST API and its OpenAPI schema |

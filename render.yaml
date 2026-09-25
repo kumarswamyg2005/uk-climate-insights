@@ -1,0 +1,27 @@
+# Render Blueprint: dashboard.render.com -> New -> Blueprint -> pick this repo.
+# The database is Neon Postgres (see docs/adr/004-render-web-neon-postgres.md), so its URL is a
+# secret you paste in; nothing sensitive is stored here.
+services:
+  - type: web
+    name: uk-climate-insights
+    runtime: docker
+    plan: free
+    region: frankfurt # same region as the Neon database (aws-eu-central-1)
+    branch: main
+    healthCheckPath: /healthz
+    autoDeployTrigger: checksPass # deploy a push to main only after CI passes
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false # Neon direct connection string, entered at Blueprint creation
+      - key: GROQ_API_KEY
+        sync: false
+      - key: DJANGO_SUPERUSER_USERNAME
+        sync: false
+      - key: DJANGO_SUPERUSER_EMAIL
+        sync: false
+      - key: DJANGO_SUPERUSER_PASSWORD
+        sync: false
+      - key: NUM_PROXIES
+        value: "1" # client IP = last X-Forwarded-For hop, added by Render's proxy

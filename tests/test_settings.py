@@ -34,6 +34,25 @@ def test_production_forces_debug_off_and_reads_the_key_from_env():
     assert result.stdout.split() == ["False", "True"]
 
 
+def test_render_hostname_is_allowed_and_trusted_for_csrf():
+    probe = (
+        "from django.conf import settings; "
+        "print('app.onrender.com' in settings.ALLOWED_HOSTS, settings.CSRF_TRUSTED_ORIGINS)"
+    )
+    clean = {k: v for k, v in os.environ.items() if k != "DEBUG"}
+    clean.update(
+        DJANGO_SETTINGS_MODULE="config.settings.prod",
+        DATABASE_URL="postgres://u:p@localhost:5432/db",
+        SECRET_KEY="x",
+        RENDER_EXTERNAL_HOSTNAME="app.onrender.com",
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", probe], cwd=ROOT, env=clean, capture_output=True, text=True
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == "True ['https://app.onrender.com']"
+
+
 def test_no_credentials_in_tracked_files():
     tracked = subprocess.run(
         ["git", "ls-files"], cwd=ROOT, capture_output=True, text=True, check=True
