@@ -220,7 +220,18 @@ def test_latest_run_skips_failed_and_running_and_hides_error_text(client):
 
 
 @pytest.mark.parametrize(
-    "path", ["regions/", "parameters/", "observations/", "series/", "ingestion-runs/latest/"]
+    "path",
+    [
+        "regions/",
+        "parameters/",
+        "observations/",
+        "series/",
+        "series.csv",
+        "summary/",
+        "extremes/",
+        "compare/",
+        "ingestion-runs/latest/",
+    ],
 )
 @pytest.mark.parametrize("method", ["post", "put", "patch", "delete"])
 def test_api_is_read_only(client, path, method):
