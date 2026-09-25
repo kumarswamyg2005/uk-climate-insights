@@ -1,7 +1,12 @@
-from django.contrib import admin
+from django.contrib import admin, messages
+from django.core.exceptions import PermissionDenied
 from django.db import models
 from django.db.models import Count
+from django.shortcuts import redirect
+from django.urls import path
+from django.views.decorators.http import require_POST
 
+from .ingest import start_background_ingest
 from .models import IngestionRun, Observation, Parameter, Region
 
 
@@ -58,8 +63,27 @@ class IngestionRunAdmin(ReadOnlyAdmin):
         "files_attempted",
         "rows_upserted",
         "error_count",
+        "source_updated_at",
     ]
     list_filter = ["status"]
+
+    def get_urls(self):
+        run_ingest = self.admin_site.admin_view(require_POST(self.run_ingest_view))
+        return [
+            path("run-ingest/", run_ingest, name="climate_ingestionrun_run_ingest"),
+            *super().get_urls(),
+        ]
+
+    def run_ingest_view(self, request):
+        """The "Run ingest now" button on the changelist (superusers only, POST only)."""
+        if not request.user.is_superuser:
+            raise PermissionDenied
+        run = start_background_ingest()
+        if run:
+            messages.success(request, f"Ingest run #{run.pk} started. Refresh to follow progress.")
+        else:
+            messages.warning(request, "An ingest is already running.")
+        return redirect("admin:climate_ingestionrun_changelist")
 
     @admin.display(description="Errors")
     def error_count(self, obj):
