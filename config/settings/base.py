@@ -88,7 +88,18 @@ REST_FRAMEWORK = {
     ],
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "COERCE_DECIMAL_TO_STRING": False,  # values are JSON numbers
+    # Invariant 12. Counted per client IP in the default (in-process) cache: exact with one
+    # gunicorn worker; move to a shared cache (Redis/DB) before running several workers.
+    "DEFAULT_THROTTLE_RATES": {"chat": env("CHAT_RATE_LIMIT", default="10/min")},
+    # Behind Render's proxy the client IP is the last X-Forwarded-For hop; 0 locally.
+    "NUM_PROXIES": env.int("NUM_PROXIES", default=0),
 }
+
+# LLM chat (Groq). Without a key the chat endpoint answers 503 and everything else works.
+GROQ_API_KEY = env.str("GROQ_API_KEY", default="").strip()
+LLM_MODEL = env.str("LLM_MODEL", default="openai/gpt-oss-120b")
+LLM_FALLBACK_MODEL = env.str("LLM_FALLBACK_MODEL", default="openai/gpt-oss-20b")
+LLM_TIMEOUT = env.float("LLM_TIMEOUT", default=15.0)
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "UK Climate Insights API",
