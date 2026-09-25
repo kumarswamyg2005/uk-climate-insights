@@ -271,3 +271,19 @@ def test_if_needed_ingests_until_one_completes(metoffice, earlier):
     serve(metoffice, "Tmax", "UK", body=TMAX_UK)
     call_command("ingest_metoffice", "--if-needed", "--regions", "UK", "--parameters", "Tmax")
     assert Observation.objects.count() == TMAX_UK_ROWS
+
+
+def test_strict_fails_a_partial_run_so_the_scheduled_job_alerts(metoffice):
+    serve(metoffice, "Tmax", "UK", body=TMAX_UK)
+    serve(metoffice, "Tmax", "Wales", status=404)
+    with pytest.raises(CommandError, match="1 of 2 files failed"):
+        call_command(
+            "ingest_metoffice", "--strict", "--regions", "UK,Wales", "--parameters", "Tmax"
+        )
+    assert Observation.objects.count() == TMAX_UK_ROWS  # the good file is still stored
+
+
+def test_without_strict_a_partial_run_exits_cleanly(metoffice):
+    serve(metoffice, "Tmax", "UK", body=TMAX_UK)
+    serve(metoffice, "Tmax", "Wales", status=404)
+    call_command("ingest_metoffice", "--regions", "UK,Wales", "--parameters", "Tmax")

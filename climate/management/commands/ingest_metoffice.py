@@ -42,8 +42,22 @@ class Command(BaseCommand):
             help="do nothing once an ingest has completed (container boot). A run that was "
             "interrupted or failed doesn't count, so the next boot tries again.",
         )
+        parser.add_argument(
+            "--strict",
+            action="store_true",
+            help="exit with an error unless every file succeeded (so a scheduled job alerts)",
+        )
 
-    def handle(self, *args, regions=None, parameters=None, delay=None, if_needed=False, **options):
+    def handle(
+        self,
+        *args,
+        regions=None,
+        parameters=None,
+        delay=None,
+        if_needed=False,
+        strict=False,
+        **options,
+    ):
         completed = IngestionRun.objects.filter(
             status__in=[IngestionRun.Status.SUCCESS, IngestionRun.Status.PARTIAL]
         )
@@ -79,3 +93,6 @@ class Command(BaseCommand):
 
         if run.status == IngestionRun.Status.FAILED:
             raise CommandError("every file failed; see errors above")
+        if strict and run.status == IngestionRun.Status.PARTIAL:
+            failed = run.files_attempted - run.files_succeeded
+            raise CommandError(f"{failed} of {run.files_attempted} files failed; see errors above")
