@@ -1,5 +1,9 @@
+import csv
+
+from django.http import HttpResponse
 from django_filters.rest_framework import DjangoFilterBackend
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import generics
 from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.pagination import PageNumberPagination
@@ -11,11 +15,14 @@ from climate.models import IngestionRun, Observation
 
 from .filters import ObservationFilter
 from .serializers import (
+    CompareSerializer,
+    ExtremeSerializer,
     IngestionRunSerializer,
     ObservationSerializer,
     ParameterSerializer,
     RegionSerializer,
     SeriesSerializer,
+    SummarySerializer,
 )
 
 
@@ -59,6 +66,58 @@ class SeriesView(APIView):
     @extend_schema(parameters=[queries.SeriesQuery], responses=SeriesSerializer)
     def get(self, request):
         return Response(queries.get_series(request.query_params))
+
+
+class SeriesCsvView(APIView):
+    """The same series as /series/, as a CSV download (one row per year, unit on every row)."""
+
+    @extend_schema(
+        parameters=[queries.SeriesQuery],
+        responses={(200, "text/csv"): OpenApiResponse(OpenApiTypes.STR, description="CSV file")},
+    )
+    def get(self, request):
+        series = queries.get_series(request.query_params)
+        filename = "_".join([series["region"], series["parameter"], series["period"]])
+        response = HttpResponse(content_type="text/csv; charset=utf-8")
+        response["Content-Disposition"] = f'attachment; filename="{filename}.csv"'
+        writer = csv.writer(response)
+        writer.writerow(["region", "parameter", "period", "year", "value", "unit"])
+        for year, value in series["points"]:
+            writer.writerow(
+                [
+                    series["region"],
+                    series["parameter"],
+                    series["period"],
+                    year,
+                    value,
+                    series["unit"],
+                ]
+            )
+        return response
+
+
+class SummaryView(APIView):
+    """Count, mean, min/max with their years, latest value and linear trend per decade."""
+
+    @extend_schema(parameters=[queries.SeriesQuery], responses=SummarySerializer)
+    def get(self, request):
+        return Response(queries.get_summary(request.query_params))
+
+
+class ExtremesView(APIView):
+    """The highest or lowest years of a series (what the chat uses for "wettest", "coldest")."""
+
+    @extend_schema(parameters=[queries.ExtremeQuery], responses=ExtremeSerializer)
+    def get(self, request):
+        return Response(queries.get_extreme(request.query_params))
+
+
+class CompareView(APIView):
+    """Up to 4 regions' series aligned on one year axis."""
+
+    @extend_schema(parameters=[queries.CompareQuery], responses=CompareSerializer)
+    def get(self, request):
+        return Response(queries.compare_regions(request.query_params))
 
 
 class LatestIngestionRunView(APIView):
