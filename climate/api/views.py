@@ -36,6 +36,15 @@ class ObservationPagination(PageNumberPagination):
     page_size_query_param = "page_size"
     max_page_size = 1000
 
+    def get_page_size(self, request):
+        raw = request.query_params.get(self.page_size_query_param)
+        if raw is not None and not (raw.isdigit() and 1 <= int(raw) <= self.max_page_size):
+            # DRF would quietly fall back to the default; invariant 8 wants a 400.
+            raise ValidationError(
+                {"page_size": [f"Must be a whole number from 1 to {self.max_page_size}."]}
+            )
+        return super().get_page_size(request)
+
     def paginate_queryset(self, queryset, request, view=None):
         try:
             return super().paginate_queryset(queryset, request, view)
@@ -87,17 +96,8 @@ class SeriesCsvView(APIView):
         response["Content-Disposition"] = f'attachment; filename="{filename}.csv"'
         writer = csv.writer(response)
         writer.writerow(["region", "parameter", "period", "year", "value", "unit"])
-        for year, value in series["points"]:
-            writer.writerow(
-                [
-                    series["region"],
-                    series["parameter"],
-                    series["period"],
-                    year,
-                    value,
-                    series["unit"],
-                ]
-            )
+        meta = [series["region"], series["parameter"], series["period"]]
+        writer.writerows([*meta, year, value, series["unit"]] for year, value in series["points"])
         return response
 
 

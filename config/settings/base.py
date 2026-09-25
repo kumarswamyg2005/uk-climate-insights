@@ -1,5 +1,6 @@
 """Settings shared by every environment. Values that differ per environment come from env vars."""
 
+import os
 from pathlib import Path
 
 import environ
@@ -7,7 +8,10 @@ import environ
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 env = environ.Env()
-if (BASE_DIR / ".env").exists():
+# .env is a local convenience. Production takes configuration only from the real environment, so
+# a stray .env file can never supply or override a secret there.
+_production = os.environ.get("DJANGO_SETTINGS_MODULE", "").endswith(".prod")
+if not _production and (BASE_DIR / ".env").exists():
     # Real environment variables always win over .env (overwrite=False).
     environ.Env.read_env(BASE_DIR / ".env")
 

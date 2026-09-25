@@ -42,23 +42,14 @@
 
   // --- formatting -------------------------------------------------------------------------
 
-  const formatters = new Map();
   /** Fixed decimals when given (so table columns align), otherwise up to 2. */
-  Climate.formatNumber = function (value, decimals) {
-    const key = decimals === undefined ? "auto" : decimals;
-    if (!formatters.has(key)) {
-      formatters.set(
-        key,
-        new Intl.NumberFormat(
-          "en-GB",
-          decimals === undefined
-            ? { maximumFractionDigits: 2 }
-            : { minimumFractionDigits: decimals, maximumFractionDigits: decimals },
-        ),
-      );
-    }
-    return formatters.get(key).format(value);
-  };
+  Climate.formatNumber = (value, decimals) =>
+    new Intl.NumberFormat(
+      "en-GB",
+      decimals === undefined
+        ? { maximumFractionDigits: 2 }
+        : { minimumFractionDigits: decimals, maximumFractionDigits: decimals },
+    ).format(value);
   Climate.formatValue = (value, unit, decimals) =>
     `${Climate.formatNumber(value, decimals)} ${unit}`;
   Climate.formatSigned = (value, unit) =>
@@ -288,7 +279,6 @@
     const toggle = document.getElementById("filters-toggle");
     const controls = document.getElementById("controls");
     const summary = document.getElementById("filters-summary");
-    if (!toggle) return () => {};
     toggle.addEventListener("click", () => {
       const open = controls.classList.toggle("is-open");
       toggle.setAttribute("aria-expanded", String(open));
@@ -296,6 +286,24 @@
     return (text) => {
       summary.textContent = text;
     };
+  };
+
+  /** Replace the results with a message (empty or error state); errors get a "Try again" button. */
+  Climate.showStatus = function ({ message, isError, retry, hide }) {
+    const status = document.getElementById("status");
+    status.textContent = message;
+    status.classList.toggle("is-error", !!isError);
+    if (isError) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "button";
+      button.textContent = "Try again";
+      button.addEventListener("click", retry);
+      status.append(document.createElement("br"), button);
+    }
+    status.hidden = false;
+    for (const id of hide) document.getElementById(id).hidden = true;
+    document.getElementById("results").classList.remove("has-data");
   };
 
   /** A sortable, expandable table. columns: [{label, value(row) -> text, numeric}]. */
