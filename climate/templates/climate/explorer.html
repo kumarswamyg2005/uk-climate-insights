@@ -1,0 +1,75 @@
+{% extends "climate/base.html" %}
+{% load static %}
+
+{% block content %}
+<section class="stripes-band" aria-label="Climate stripes">
+  <div class="stripes" id="stripes" role="img" aria-label="Climate stripes are loading">
+    <div class="stripes-layer is-front"></div>
+    <div class="stripes-layer"></div>
+    <div class="stripes-tip" id="stripes-tip" hidden></div>
+  </div>
+  <div class="stripes-axis">
+    <span id="stripes-start"></span>
+    <span id="stripes-key"></span>
+    <span id="stripes-end"></span>
+  </div>
+</section>
+
+<div class="layout">
+  <button type="button" class="filters-toggle" id="filters-toggle" aria-expanded="false" aria-controls="controls">
+    Filters: <span id="filters-summary"></span>
+  </button>
+
+  <form class="controls" id="controls" method="get" action="" aria-label="Choose a series">
+    <label for="region">Region</label>
+    <select id="region" name="region">
+      {% for code, name in regions %}
+        <option value="{{ code }}"{% if code == selected.region %} selected{% endif %}>{{ name }}</option>
+      {% endfor %}
+    </select>
+
+    {% include "climate/_series_controls.html" %}
+
+    <label class="check">
+      <input type="checkbox" id="rolling" name="rolling" value="1">
+      Show 10-year rolling mean
+    </label>
+
+    <div class="actions">
+      <a class="button" id="csv-link" href="#" download>Download CSV</a>
+      <a class="button button-quiet" id="compare-link" href="{% url 'compare' %}">Compare regions</a>
+    </div>
+  </form>
+
+  <section class="results" id="results" aria-busy="true">
+    <div class="results-head">
+      <h1 id="series-title">UK climate series</h1>
+      <span class="unit" id="series-unit"></span>
+    </div>
+    <p class="note" id="series-note" hidden></p>
+    <p class="visually-hidden" id="announce" aria-live="polite"></p>
+
+    <div class="status" id="status" role="status">Loading the series…</div>
+
+    <div class="chart-wrap" id="chart-wrap" hidden>
+      <canvas id="chart" role="img" aria-label=""></canvas>
+    </div>
+
+    <dl class="stats" id="stats" hidden></dl>
+
+    <div class="table-wrap" id="table-wrap" hidden>
+      <table class="data-table" id="data-table">
+        <caption class="visually-hidden" id="table-caption"></caption>
+        <thead></thead>
+        <tbody></tbody>
+      </table>
+      <button type="button" class="button button-quiet" id="table-more" hidden></button>
+    </div>
+  </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'climate/vendor/chart.umd.min.js' %}" defer></script>
+<script src="{% static 'climate/js/explorer.js' %}" defer></script>
+{% endblock %}

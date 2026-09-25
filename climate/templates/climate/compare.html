@@ -1,0 +1,58 @@
+{% extends "climate/base.html" %}
+{% load static %}
+
+{% block title %}Compare regions · UK Climate Insights{% endblock %}
+
+{% block content %}
+<div class="layout">
+  <button type="button" class="filters-toggle" id="filters-toggle" aria-expanded="false" aria-controls="controls">
+    Filters: <span id="filters-summary"></span>
+  </button>
+
+  <form class="controls" id="controls" method="get" action="" aria-label="Choose regions to compare">
+    <fieldset class="region-picks" id="region-picks" data-max="{{ max_regions }}">
+      <legend>Regions <span class="hint">(up to {{ max_regions }})</span></legend>
+      {% for code, name in regions %}
+        <label class="check">
+          <input type="checkbox" name="regions" value="{{ code }}"{% if code in selected.regions %} checked{% endif %}>
+          {{ name }}
+        </label>
+      {% endfor %}
+    </fieldset>
+    <p class="hint" id="regions-hint" hidden>Up to {{ max_regions }} regions. Untick one to add another.</p>
+
+    {% include "climate/_series_controls.html" %}
+  </form>
+
+  <section class="results" id="results" aria-busy="true">
+    <div class="results-head">
+      <h1 id="series-title">Compare regions</h1>
+      <span class="unit" id="series-unit"></span>
+    </div>
+    <p class="note" id="series-note" hidden></p>
+    <p class="visually-hidden" id="announce" aria-live="polite"></p>
+
+    <div class="status" id="status" role="status">Loading the series…</div>
+
+    <ul class="legend" id="legend" hidden></ul>
+    <div class="chart-wrap" id="chart-wrap" hidden>
+      <canvas id="chart" role="img" aria-label=""></canvas>
+    </div>
+
+    <div class="table-wrap" id="table-wrap" hidden>
+      <table class="data-table" id="data-table">
+        <caption class="visually-hidden" id="table-caption"></caption>
+        <thead></thead>
+        <tbody></tbody>
+      </table>
+      <button type="button" class="button button-quiet" id="table-more" hidden></button>
+    </div>
+  </section>
+</div>
+{{ selected.regions|json_script:"initial-regions" }}
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'climate/vendor/chart.umd.min.js' %}" defer></script>
+<script src="{% static 'climate/js/compare.js' %}" defer></script>
+{% endblock %}

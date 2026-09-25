@@ -1,0 +1,40 @@
+{% load static %}<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}UK Climate Insights{% endblock %}</title>
+  <meta name="description" content="Explore more than a century of UK Met Office regional climate records: temperature, rainfall, sunshine and frost, by region and season.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 4 4'%3E%3Cpath fill='%2308306B' d='M0 0h1v4H0z'/%3E%3Cpath fill='%236BAED6' d='M1 0h1v4H1z'/%3E%3Cpath fill='%23FC9272' d='M2 0h1v4H2z'/%3E%3Cpath fill='%2367000D' d='M3 0h1v4H3z'/%3E%3C/svg%3E">
+  <link rel="preload" href="{% static 'climate/fonts/atkinson-hyperlegible-latin-400-normal.woff2' %}" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="{% static 'climate/css/app.css' %}">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="{% url 'explorer' %}">UK Climate Insights</a>
+    <nav aria-label="Main">
+      <a href="{% url 'explorer' %}"{% if nav == "explore" %} aria-current="page"{% endif %}>Explore</a>
+      <a href="{% url 'compare' %}"{% if nav == "compare" %} aria-current="page"{% endif %}>Compare</a>
+      <a href="{% url 'about' %}"{% if nav == "about" %} aria-current="page"{% endif %}>About</a>
+    </nav>
+  </header>
+
+  <main id="main">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="site-footer">
+    <p>
+      Data: <a href="{{ source_url }}">Met Office UK and regional series</a>.
+      Contains Met Office data © Crown copyright {% now "Y" %}, licensed under the
+      <a href="https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/">Open Government Licence v3.0</a>.
+      <span id="data-updated" data-endpoint="{% url 'api:latest-ingestion-run' %}"></span>
+    </p>
+    <p><a href="{% url 'docs' %}">API docs</a> · <a href="https://github.com/kumarswamyg2005/uk-climate-insights">Source code</a></p>
+  </footer>
+
+  <script src="{% static 'climate/js/common.js' %}" defer></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

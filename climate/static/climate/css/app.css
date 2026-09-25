@@ -1,0 +1,563 @@
+/* UK Climate Insights. Tokens and rules from DESIGN.md. */
+
+@font-face {
+  font-family: "Atkinson Hyperlegible";
+  src: url("../fonts/atkinson-hyperlegible-latin-400-normal.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Atkinson Hyperlegible";
+  src: url("../fonts/atkinson-hyperlegible-latin-700-normal.woff2") format("woff2");
+  font-weight: 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Newsreader";
+  src: url("../fonts/newsreader-latin-600-normal.woff2") format("woff2");
+  font-weight: 600;
+  font-display: swap;
+}
+
+:root {
+  color-scheme: light;
+  --paper: #f7f8f6;
+  --ink: #1a2230;
+  --slate: #5b6676;
+  --rule: #d9dee3;
+  --signal: #1f6fb2;
+  --danger: #a4262c;
+  /* Compare lines: dataviz categorical slots 1-4, validated on --paper (see docs/TESTING.md). */
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+
+  --font-body: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-head: "Newsreader", Georgia, "Times New Roman", serif;
+  --step-0: 14px;
+  --step-1: 16px;
+  --step-2: 20px;
+  --step-3: 26px;
+  --step-4: 34px;
+  --gutter: clamp(16px, 4vw, 32px);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --paper: #11161e;
+    --ink: #e6eaf0;
+    --slate: #9aa5b4;
+    --rule: #2a3340;
+    --signal: #5fa8e8;
+    --danger: #f0868b;
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --series-4: #c98500;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 400 var(--step-1) / 1.5 var(--font-body);
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-head);
+  font-weight: 600;
+  line-height: 1.2;
+  margin: 0 0 0.5em;
+}
+h1 {
+  font-size: var(--step-3);
+}
+h2 {
+  font-size: var(--step-2);
+}
+
+a {
+  color: var(--signal);
+}
+
+:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: 2px;
+}
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.skip-link {
+  position: absolute;
+  left: var(--gutter);
+  top: -40px;
+  background: var(--paper);
+  padding: 8px;
+}
+.skip-link:focus {
+  top: 8px;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+/* --- header and footer ------------------------------------------------------------------ */
+
+.site-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 24px;
+  padding: 16px var(--gutter);
+  border-bottom: 1px solid var(--rule);
+}
+.brand {
+  font-family: var(--font-head);
+  font-weight: 600;
+  font-size: var(--step-2);
+  color: var(--ink);
+  text-decoration: none;
+}
+.site-header nav {
+  display: flex;
+  gap: 20px;
+}
+.site-header nav a {
+  color: var(--slate);
+  text-decoration: none;
+  padding: 4px 0;
+  border-bottom: 2px solid transparent;
+}
+.site-header nav a:hover {
+  color: var(--ink);
+}
+.site-header nav a[aria-current="page"] {
+  color: var(--ink);
+  border-bottom-color: var(--signal);
+}
+
+.site-footer {
+  border-top: 1px solid var(--rule);
+  padding: 16px var(--gutter) 32px;
+  color: var(--slate);
+  font-size: var(--step-0);
+}
+.site-footer p {
+  max-width: 72ch;
+  margin: 0 0 8px;
+}
+
+/* --- climate stripes: the one bold thing -------------------------------------------------- */
+
+.stripes-band {
+  border-bottom: 1px solid var(--rule);
+}
+.stripes {
+  position: relative;
+  height: clamp(72px, 14vw, 128px);
+  background: var(--rule);
+}
+.stripes-layer {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 200ms ease;
+}
+.stripes-layer.is-front {
+  opacity: 1;
+}
+.stripes-tip {
+  position: absolute;
+  top: 8px;
+  transform: translateX(-50%);
+  background: var(--paper);
+  color: var(--ink);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: var(--step-0);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.stripes-axis {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 6px var(--gutter);
+  color: var(--slate);
+  font-size: var(--step-0);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- page layout ------------------------------------------------------------------------ */
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
+  align-items: start;
+}
+
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 24px var(--gutter);
+  border-right: 1px solid var(--rule);
+  min-height: 100%;
+}
+.controls > label,
+.controls legend {
+  font-weight: 700;
+  font-size: var(--step-0);
+  margin-top: 10px;
+}
+.controls > label:first-child {
+  margin-top: 0;
+}
+
+select,
+input[type="number"] {
+  font: inherit;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--slate);
+  border-radius: 4px;
+  padding: 6px 8px;
+  min-height: 40px;
+  width: 100%;
+}
+select:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: 1px;
+  border-color: var(--signal);
+}
+
+fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.years {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 8px;
+}
+.years legend {
+  margin-bottom: 6px;
+  padding: 0;
+}
+.years span {
+  color: var(--slate);
+  font-size: var(--step-0);
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  font-size: var(--step-0);
+  cursor: pointer;
+}
+.check input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--signal);
+}
+.region-picks .check {
+  margin-top: 6px;
+}
+.region-picks .check:has(input:disabled) {
+  color: var(--slate);
+  cursor: not-allowed;
+}
+
+.hint {
+  color: var(--slate);
+  font-size: var(--step-0);
+  font-weight: 400;
+  margin: 0;
+}
+.field-error {
+  color: var(--danger);
+  font-size: var(--step-0);
+  margin: 4px 0 0;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 8px 14px;
+  border: 1px solid var(--signal);
+  border-radius: 4px;
+  background: var(--signal);
+  color: var(--paper);
+  font: 700 var(--step-0) / 1.2 var(--font-body);
+  text-decoration: none;
+  cursor: pointer;
+}
+.button:hover {
+  filter: brightness(1.08);
+}
+.button-quiet {
+  background: transparent;
+  color: var(--signal);
+}
+.button[aria-disabled="true"],
+.button:disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* --- results ---------------------------------------------------------------------------- */
+
+.results {
+  padding: 24px var(--gutter) 32px;
+  min-width: 0;
+  transition: opacity 120ms linear;
+}
+.results[aria-busy="true"].has-data {
+  opacity: 0.55; /* hold the previous render while the next one loads */
+}
+.results-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+.results-head h1 {
+  font-size: var(--step-3);
+  margin: 0;
+}
+.unit {
+  color: var(--slate);
+  white-space: nowrap;
+}
+.note {
+  color: var(--slate);
+  font-size: var(--step-0);
+  margin: 6px 0 0;
+  max-width: 72ch;
+}
+
+.status {
+  margin: 24px 0;
+  padding: 16px 0;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  color: var(--slate);
+  max-width: 72ch;
+}
+.status.is-error {
+  color: var(--danger);
+}
+.status .button {
+  margin-top: 12px;
+}
+
+.chart-wrap {
+  position: relative;
+  height: clamp(260px, 40vw, 400px);
+  margin: 16px 0 8px;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  list-style: none;
+  padding: 0;
+  margin: 16px 0 0;
+  font-size: var(--step-0);
+}
+.legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.legend .key {
+  width: 18px;
+  height: 0;
+  border-top: 2px solid currentColor;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0 32px;
+  margin: 16px 0 24px;
+  border-top: 1px solid var(--rule);
+}
+.stats div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.stats dt {
+  color: var(--slate);
+}
+.stats dd {
+  margin: 0;
+  font-weight: 700;
+  text-align: right;
+}
+
+.table-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+}
+.data-table {
+  border-collapse: collapse;
+  font-size: var(--step-0);
+  min-width: 240px;
+}
+.data-table th,
+.data-table td {
+  padding: 6px 16px 6px 0;
+  border-bottom: 1px solid var(--rule);
+  text-align: left;
+}
+.data-table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.data-table td {
+  font-variant-numeric: tabular-nums;
+}
+.data-table th {
+  font-weight: 700;
+}
+.data-table th button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+.data-table th[aria-sort="ascending"] button::after {
+  content: " (low to high)";
+  color: var(--slate);
+  font-weight: 400;
+}
+.data-table th[aria-sort="descending"] button::after {
+  content: " (high to low)";
+  color: var(--slate);
+  font-weight: 400;
+}
+#table-more {
+  margin-top: 12px;
+}
+
+/* --- prose (about) ---------------------------------------------------------------------- */
+
+.prose {
+  max-width: 72ch;
+  padding: 32px var(--gutter) 48px;
+}
+.prose h1 {
+  font-size: var(--step-4);
+}
+.prose h2 {
+  margin-top: 1.6em;
+}
+.prose li {
+  margin-bottom: 8px;
+}
+.prose pre {
+  overflow-x: auto;
+  padding: 12px 0;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  font-size: var(--step-0);
+}
+.coverage {
+  width: 100%;
+}
+
+.filters-toggle {
+  display: none; /* only shown on narrow screens */
+}
+
+/* --- mobile: controls collapse into a sheet under a summary bar ------------------------- */
+
+@media (max-width: 760px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .filters-toggle {
+    display: block;
+    width: 100%;
+    text-align: left;
+    font: 700 var(--step-0) / 1.4 var(--font-body);
+    color: var(--ink);
+    background: var(--paper);
+    border: 0;
+    border-bottom: 1px solid var(--rule);
+    padding: 12px var(--gutter);
+    min-height: 44px;
+    cursor: pointer;
+  }
+  .filters-toggle span {
+    font-weight: 400;
+    color: var(--slate);
+  }
+  .controls {
+    display: none;
+    border-right: 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  .controls.is-open {
+    display: flex;
+  }
+  .results-head {
+    flex-direction: column;
+    gap: 4px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stripes-layer,
+  .results {
+    transition: none;
+  }
+}

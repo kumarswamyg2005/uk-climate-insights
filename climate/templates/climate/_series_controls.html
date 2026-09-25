@@ -1,0 +1,27 @@
+<label for="parameter">Measure</label>
+<select id="parameter" name="parameter">
+  {% for code, name, unit in parameters %}
+    <option value="{{ code }}" data-unit="{{ unit }}"{% if code == selected.parameter %} selected{% endif %}>{{ name }}</option>
+  {% endfor %}
+</select>
+
+<label for="period">Period</label>
+<select id="period" name="period">
+  {% for group, periods in period_groups %}
+    <optgroup label="{{ group }}">
+      {% for code, label in periods %}
+        <option value="{{ code }}"{% if code == selected.period %} selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </optgroup>
+  {% endfor %}
+</select>
+
+<fieldset class="years">
+  <legend>Years</legend>
+  <label for="year_from" class="visually-hidden">From year</label>
+  <input id="year_from" name="year_from" type="number" inputmode="numeric" min="1800" max="2100" step="1" placeholder="First">
+  <span aria-hidden="true">to</span>
+  <label for="year_to" class="visually-hidden">To year</label>
+  <input id="year_to" name="year_to" type="number" inputmode="numeric" min="1800" max="2100" step="1" placeholder="Last">
+</fieldset>
+<p class="field-error" id="years-error" hidden></p>

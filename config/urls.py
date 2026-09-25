@@ -5,6 +5,9 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from climate import views
 
 urlpatterns = [
+    path("", views.explorer, name="explorer"),
+    path("compare/", views.compare, name="compare"),
+    path("about/", views.about, name="about"),
     path("admin/", admin.site.urls),
     path("healthz", views.healthz, name="healthz"),
     path("api/v1/", include("climate.api.urls")),
