@@ -44,6 +44,8 @@ class IngestionRun(models.Model):
     files_succeeded = models.PositiveIntegerField(default=0)
     rows_upserted = models.PositiveIntegerField(default=0)
     errors = models.JSONField(default=list, blank=True)  # [{"url": ..., "error": ...}]
+    # Newest "Last updated" stamp among the files this run read: how fresh the Met Office data is.
+    source_updated_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ["-started_at"]
