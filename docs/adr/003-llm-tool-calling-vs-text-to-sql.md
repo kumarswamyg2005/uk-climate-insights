@@ -72,6 +72,14 @@ API returns.
 - Revisit: if users routinely ask questions the tools can't express, add narrowly-scoped tools
   (e.g. `rank_years`) before considering SQL.
 
+## Update, 2026-09-26 (v1.1.0)
+
+To fit more questions into Groq's free per-minute quota, the 17 region codes are listed once in the
+system prompt instead of as an `enum` in five tool schemas: 2,189 to 1,647 prompt tokens per round,
+measured. Validation is unchanged: every argument still goes through the catalog whitelists before
+any query. Repeated standalone questions are answered from a cache keyed on the question, model and
+latest ingest run.
+
 ## Action items
 
 1. [ ] `LLMClient` interface + Groq implementation; a fake client in tests.

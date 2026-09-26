@@ -57,6 +57,7 @@ flowchart LR
     DB[(PostgreSQL 16)]
     LLM[Groq API<br/>chat completions + tools]
     USER((Browser))
+    GHA[GitHub Actions<br/>monthly ingest, keep-awake ping]
 
     MO -->|HTTPS GET, polite UA + delay| FETCH
     CMD --> ING
@@ -72,11 +73,12 @@ flowchart LR
     API --> CHAT
     USER -->|HTML| UI
     USER -->|fetch JSON / CSV| API
+    GHA -->|2nd of each month| CMD
 ```
 
 `catalog.py` is the single source of truth for region and parameter codes. The ingest mirrors it into
-the `Region` and `Parameter` tables, and every whitelist (API filters, query validation, LLM tool
-schemas) is built from it.
+the `Region` and `Parameter` tables, and every whitelist (API filters, query validation, the LLM's
+system prompt and tool schemas) is built from it.
 
 `queries.py` holds the read logic once. The REST views and the LLM tools are two thin front ends over
 the same functions, so the chat can never answer from a code path the API doesn't also expose.
@@ -148,6 +150,7 @@ sequenceDiagram
 
     B->>V: {message, history}
     V->>V: throttle (10/min/IP), length caps, role whitelist on history
+    V->>V: no history and seen before? return the cached answer (key: question, model, latest run)
     V->>S: answer(message, history)
     loop up to 5 tool rounds
         S->>L: system prompt + messages + tool schemas
@@ -160,7 +163,7 @@ sequenceDiagram
         S->>L: role=tool results
     end
     S-->>V: {answer, tool_calls, data, model}
-    V-->>B: 200, or 503 if the provider is missing / down / rate-limited
+    V-->>B: 200 with cached=false (and the answer is cached), or 503 if every model is unavailable
 ```
 
 ## 4. Data model
@@ -243,7 +246,9 @@ list, never 404.
 | Met Office 404 | not retried; recorded; run ends `partial` |
 | File format change | `ParseError` with line number; that file is skipped and existing rows stay untouched |
 | DB error mid-file | the per-file transaction rolls back; other files are unaffected |
-| Groq missing key / 429 / timeout | `POST /chat/` returns 503; the rest of the app is unaffected |
+| Groq 429 on one model | the request moves to the next model in a three-model chain, each with its own quota |
+| Groq missing key / all models busy / timeout | `POST /chat/` returns 503; cached answers still work; the rest of the app is unaffected |
+| Monthly ingest short of 119/119 files | the scheduled GitHub job fails and GitHub emails the owner; existing data stays |
 | DB down | `/healthz` returns 503 so the platform restarts or alerts |
 
 ## 7. Deployment
@@ -259,6 +264,8 @@ flowchart LR
     E -->|HTTPS| MO[(Met Office)]
     E -->|HTTPS| G[Groq API]
     U((Browser)) -->|HTTPS| Render
+    A[GitHub Actions] -->|monthly ingest, DATABASE_URL secret| N
+    A -->|static file every 10 min| Render
 ```
 
 The image is built once per push, with static files collected at build time and served by
@@ -266,6 +273,11 @@ WhiteNoise with immutable caching. Configuration comes only from environment var
 production. Secrets (`SECRET_KEY`, `DATABASE_URL`, `GROQ_API_KEY`) live in Render's environment,
 never in the repo. See [ADR-004](adr/004-render-web-neon-postgres.md) for why the database is on
 Neon.
+
+Two scheduled GitHub Actions workflows complete the picture. `ingest.yml` runs the ingest against
+Neon on the 2nd of each month and fails loudly on anything short of 119/119 files. `keep-warm.yml`
+requests a static file every 10 minutes, so the free Render service doesn't sleep; it skips the
+database, so Neon can still suspend.
 
 ## 8. Load estimate
 
@@ -288,17 +300,17 @@ Postgres.
 | Chat | tool calling over validated ORM functions | text-to-SQL | the model can't read or write anything the API can't; args are whitelisted ([ADR 003](adr/003-llm-tool-calling-vs-text-to-sql.md)) |
 | Parser | pure Python, column-position based | pandas `read_fwf` / whitespace split | the partial current year has blank cells; a whitespace split silently shifts values into the wrong month |
 | Ingest trigger | management command + admin action (background thread) | Celery + beat | data changes monthly; a queue adds two services for one job a month |
-| LLM model | `openai/gpt-oss-120b` on Groq, fallback `openai/gpt-oss-20b` | `llama-3.3-70b-versatile` | verified with a live tool-calling request; the Llama model returned 404 for this account; the fallback has its own free-tier quota |
+| LLM model | `openai/gpt-oss-120b` on Groq, then `openai/gpt-oss-20b`, then `qwen/qwen3.8-27b` | `llama-3.3-70b-versatile` | verified with live tool-calling requests; the Llama model returned 404 for this account; each fallback has its own free-tier quota, and repeated questions come from a cache |
 | Hosting | Render web + Neon Postgres | Render Postgres, EC2 | free Render Postgres is deleted 30 + 14 days after creation ([ADR-004](adr/004-render-web-neon-postgres.md)) |
 
 ## 10. What I'd revisit as it grows
 
-- **Scheduled ingest**: a Render cron job (or Celery beat) on the 2nd of each month, instead of manual runs.
-- **Caching**: responses only change after an ingest, so HTTP `Cache-Control` / ETag keyed on the
-  last run id, or a per-view cache invalidated by the ingest.
+- **Caching the read API**: responses only change after an ingest, so HTTP `Cache-Control` / ETag
+  keyed on the last run id, or a per-view cache invalidated by the ingest. (Chat answers are
+  already cached this way.)
 - **Background work**: move the admin-triggered ingest from a thread to a proper job runner so it
   survives worker restarts.
 - **More sources**: HadUK-Grid gridded data or station data would need a `Source` dimension on
   `Observation`.
-- **Chat cost control**: per-day quotas, response caching for repeated questions, and a smaller
-  model for simple lookups.
+- **Chat cost control**: per-day quotas, a shared cache (Redis) across processes, and Groq's paid
+  tier once traffic is real.
