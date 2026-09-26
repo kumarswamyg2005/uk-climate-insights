@@ -342,8 +342,8 @@ answer (Wales's coldest winter, 1963, -0.45 °C) was checked against the raw Met
 
 ## 10. Three-minute demo
 
-1. **Explorer (45 s).** Open https://uk-climate-insights.onrender.com (open it a minute early: the
-   free tier sleeps after 15 idle minutes). "One stripe per year, UK mean temperature since 1884.
+1. **Explorer (45 s).** Open https://uk-climate-insights.onrender.com (a ping keeps it awake; if
+   it's slow to load, it's the free tier waking up, which takes about a minute). "One stripe per year, UK mean temperature since 1884.
    The red end is the last decade." Switch to Scotland, Rainfall, Annual, and tick the rolling
    mean. Point at the Wettest row and the trend. Mention that the URL just changed, so you can
    share this exact view.

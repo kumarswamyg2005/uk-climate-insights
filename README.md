@@ -10,8 +10,7 @@ where months haven't happened yet, so a plain whitespace split moves the winter 
 without any error. The chat runs on Groq's free tier, which allows about three questions a minute.
 The table below maps each evaluation item to the code.
 
-**Live:** https://uk-climate-insights.onrender.com (free tier: the first request after 15 idle
-minutes takes about a minute to wake the service)
+**Live:** https://uk-climate-insights.onrender.com (free tier, kept awake by a scheduled ping)
 
 **API docs:** [/api/docs/](https://uk-climate-insights.onrender.com/api/docs/) ·
 **Architecture:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) ·
@@ -191,9 +190,12 @@ migrations check, a production `collectstatic`, the tests and a Docker build on 
 
 - **The admin ingest runs in a background thread** and dies if the worker restarts. A job runner
   would make it durable.
-- **Free tiers:** the web service sleeps after 15 idle minutes (about a minute to wake), Neon
-  suspends compute when idle, and Groq's free quota is about three chat questions a minute
-  (after that the chat answers 503 "busy").
+- **Free tiers:** Render stops the web service after 15 idle minutes. A scheduled workflow
+  ([`keep-warm.yml`](.github/workflows/keep-warm.yml)) requests a static file every 10 minutes to
+  prevent that, which uses about 744 of the workspace's 750 free hours a month. GitHub can delay
+  scheduled runs, so an occasional one-minute cold start is still possible. Neon suspends idle
+  compute, which adds under a second to the first query after a quiet spell. Groq's free quota is
+  about three chat questions a minute (after that the chat answers 503 "busy").
 - The chat rate limit uses in-process memory. That's exact with the single gunicorn process used
   here, but it needs Redis before scaling out.
 - `/parameters/` scans all observations for year ranges (about 85 ms). An index on
