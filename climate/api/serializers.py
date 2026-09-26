@@ -159,3 +159,4 @@ class ChatResponseSerializer(serializers.Serializer):
     model = serializers.CharField()
     tool_calls = ChatToolCallSerializer(many=True)
     data = ChatDataSerializer(many=True)
+    cached = serializers.BooleanField(help_text="true when served from the answer cache")

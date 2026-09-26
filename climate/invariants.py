@@ -35,3 +35,4 @@ CHAT_MAX_HISTORY_MESSAGES = 6
 CHAT_MAX_HISTORY_CHARS = 1000
 CHAT_MAX_TOOL_ROUNDS = 5
 CHAT_DEADLINE_SECONDS = 30  # stop starting new LLM rounds after this; gunicorn times out at 60
+CHAT_CACHE_SECONDS = 24 * 60 * 60  # repeated questions; a new ingest run also changes the key
