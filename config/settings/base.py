@@ -102,7 +102,10 @@ REST_FRAMEWORK = {
 # LLM chat (Groq). Without a key the chat endpoint answers 503 and everything else works.
 GROQ_API_KEY = env.str("GROQ_API_KEY", default="").strip()
 LLM_MODEL = env.str("LLM_MODEL", default="openai/gpt-oss-120b")
-LLM_FALLBACK_MODEL = env.str("LLM_FALLBACK_MODEL", default="openai/gpt-oss-20b")
+# Tried in order when the one before is rate-limited; each has its own free-tier quota.
+LLM_FALLBACK_MODELS = env.list(
+    "LLM_FALLBACK_MODELS", default=["openai/gpt-oss-20b", "qwen/qwen3.8-27b"]
+)
 LLM_TIMEOUT = env.float("LLM_TIMEOUT", default=15.0)
 
 SPECTACULAR_SETTINGS = {

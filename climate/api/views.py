@@ -1,6 +1,7 @@
 import csv
 from dataclasses import asdict
 
+from django.core.cache import cache
 from django.http import HttpResponse
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.types import OpenApiTypes
@@ -14,6 +15,7 @@ from rest_framework.views import APIView
 
 from climate import queries
 from climate.chat import llm, service
+from climate.invariants import CHAT_CACHE_SECONDS
 from climate.models import IngestionRun, Observation
 
 from .filters import ObservationFilter
@@ -161,12 +163,20 @@ class ChatView(APIView):
     def post(self, request):
         chat = ChatRequestSerializer(data=request.data)
         chat.is_valid(raise_exception=True)
+        message = chat.validated_data["message"]
+        history = chat.validated_data.get("history", [])
+
+        # A standalone question (no history) repeats often, e.g. the example questions. Serving it
+        # from the cache costs no LLM quota and still works while the provider is down.
+        key = None if history else service.cache_key(message)
+        if key and (cached := cache.get(key)) is not None:
+            return Response({**cached, "cached": True})
+
         try:
-            result = service.answer(
-                chat.validated_data["message"],
-                chat.validated_data.get("history", []),
-                llm.default_client(),
-            )
+            result = service.answer(message, history, llm.default_client())
         except llm.LLMUnavailable as exc:
             return Response({"detail": str(exc)}, status=503)
-        return Response(asdict(result))
+        payload = asdict(result)
+        if key and result.answer != service.GAVE_UP:  # don't keep a transient give-up
+            cache.set(key, payload, CHAT_CACHE_SECONDS)
+        return Response({**payload, "cached": False})

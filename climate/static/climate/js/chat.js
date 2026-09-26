@@ -87,7 +87,10 @@
     const details = el("details", "chat-data");
     const rows = body.data.reduce((sum, d) => sum + rowCount(d.result), 0);
     const tools = [...new Set(body.tool_calls.map((call) => call.name))].join(", ");
-    details.append(el("summary", "", `Data used (${rows} row${rows === 1 ? "" : "s"}, ${tools})`));
+    const saved = body.cached ? ", saved answer" : "";
+    details.append(
+      el("summary", "", `Data used (${rows} row${rows === 1 ? "" : "s"}, ${tools}${saved})`),
+    );
 
     for (const d of body.data) {
       const args = Object.entries(d.args)

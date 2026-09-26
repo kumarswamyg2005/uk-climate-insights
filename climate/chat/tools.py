@@ -1,8 +1,9 @@
 """The only things the model can do: six read-only functions over the shared query layer.
 
-Schemas use enums built from the catalog, and every call is validated again by the same
-serializers the REST API uses (queries.py) before it touches the ORM. The model never sees SQL
-or the database (invariant 9).
+Every call is validated by the same serializers the REST API uses (queries.py), against the catalog
+whitelists, before it touches the ORM. The model never sees SQL or the database (invariant 9).
+Short code lists are enums in the schemas; the 17 region codes are listed once in the system prompt
+rather than repeated in five schemas, which keeps each LLM round within Groq's free-tier budget.
 """
 
 import json
@@ -12,11 +13,11 @@ from typing import Any
 from rest_framework.exceptions import ValidationError
 
 from climate import queries
-from climate.catalog import PARAMETER_CODES, REGION_CODES
+from climate.catalog import PARAMETER_CODES
 from climate.invariants import MAX_COMPARE_REGIONS, MAX_YEAR, MIN_YEAR
 from climate.periods import PERIOD_ORDER
 
-_REGION = {"type": "string", "enum": list(REGION_CODES)}
+_REGION = {"type": "string", "description": "region code from the list in the instructions"}
 _PARAMETER = {"type": "string", "enum": list(PARAMETER_CODES)}
 _PERIOD = {"type": "string", "enum": list(PERIOD_ORDER)}  # explained once, in the system prompt
 _YEAR = {"type": "integer", "minimum": MIN_YEAR, "maximum": MAX_YEAR}

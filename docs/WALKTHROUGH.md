@@ -284,8 +284,10 @@ can't carry `system` or `tool` roles.
 
 **11. What if Groq is down, rate-limited, or there's no key?**
 Every provider error becomes `LLMUnavailable`, and the endpoint returns 503 with a plain message.
-On a 429 the client retries once on a second model with its own quota. It doesn't sleep on
-`Retry-After`, because that held requests for 20 to 40 seconds in testing. The rest of the site
+On a 429 the client moves straight to the next model in a three-model chain, each with its own
+free-tier quota. It doesn't sleep on `Retry-After`, because that held requests for 20 to 40
+seconds in testing. Repeated standalone questions come from a cache keyed on the question, model
+and latest ingest run, so they cost nothing and keep working if Groq is down. The rest of the site
 never depends on the LLM.
 
 **12. How are query parameters validated?**
