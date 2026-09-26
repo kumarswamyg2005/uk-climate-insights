@@ -7,8 +7,9 @@ box that answers questions from the same tables. The chat can't invent numbers. 
 six read-only query functions, and every answer lists the calls it made and the rows that came back.
 The fiddliest part was the parser. In the current year's rows the Met Office leaves blank space
 where months haven't happened yet, so a plain whitespace split moves the winter value into September
-without any error. The chat runs on Groq's free tier, which allows about three questions a minute.
-The table below maps each evaluation item to the code.
+without any error. The chat runs on Groq's free tier. It spreads the quota over three models and
+answers repeated questions from a cache, though heavy use can still hit the limit. The table below
+maps each evaluation item to the code.
 
 **Live:** https://uk-climate-insights.onrender.com (free tier, kept awake by a scheduled ping)
 
@@ -30,11 +31,11 @@ The table below maps each evaluation item to the code.
 | 2 | Data parsing | [`climate/parsing.py`](climate/parsing.py), [`climate/fetching.py`](climate/fetching.py), [`climate/ingest.py`](climate/ingest.py) | Column-position parser tested on real files; polite fetching with retries; one transaction per file |
 | 3 | Data modelling | [`climate/models.py`](climate/models.py), [`climate/catalog.py`](climate/catalog.py), [`climate/periods.py`](climate/periods.py) | Unique key and valid periods enforced by Postgres; idempotent upsert; provenance on every row |
 | 4 | REST API | [`climate/api/`](climate/api/), [`climate/queries.py`](climate/queries.py) | DRF + django-filter, whitelisted params (400 on bad input), pagination, CSV, OpenAPI at `/api/docs/` |
-| 5 | Frontend | [`climate/templates/climate/`](climate/templates/climate/), [`climate/static/climate/`](climate/static/climate/) | Explorer (stripes, chart, stats, table), compare, about; shareable URLs; dark mode; mobile |
+| 5 | Frontend | [`climate/templates/climate/`](climate/templates/climate/), [`climate/static/climate/`](climate/static/climate/) | Explorer (stripes, chart, stats, table), compare, about; shareable URLs; dark mode; mobile; JS unit and Playwright browser tests |
 | 6 | Docker | [`Dockerfile`](Dockerfile), [`docker/entrypoint.sh`](docker/entrypoint.sh), [`docker-compose.yml`](docker-compose.yml) | Multi-stage, non-root, healthcheck; `docker compose up` loads the data on first boot |
-| 7 | Cloud deployment | [`render.yaml`](render.yaml), [ADR-004](docs/adr/004-render-web-neon-postgres.md) | Render (Docker web service) + Neon Postgres |
+| 7 | Cloud deployment | [`render.yaml`](render.yaml), [ADR-004](docs/adr/004-render-web-neon-postgres.md) | Render (Docker web service) + Neon Postgres; monthly data refresh and keep-awake ping as GitHub Actions |
 | 8 | LLM chat | [`climate/chat/`](climate/chat/), `POST /api/v1/chat/` | Groq tool calling over validated query functions; answers carry their data; 503 when unavailable |
-| + | Git | [pull requests](https://github.com/kumarswamyg2005/uk-climate-insights/pulls?q=is%3Apr) | One branch and PR per step, conventional commits, CI on every PR, tag `v1.0.0` |
+| + | Git | [pull requests](https://github.com/kumarswamyg2005/uk-climate-insights/pulls?q=is%3Apr) | One branch and PR per step, conventional commits, CI on every PR, tags `v1.0.0` and `v1.1.0` |
 | + | Public cloud | see Live above | |
 | + | Frontend for access and visualisation | see 5 | |
 
@@ -108,7 +109,7 @@ return 400 with the valid values listed.
 | `GET extremes/?...&kind=max\|min&limit=` | ranked years, what the chat uses for "wettest" or "coldest" |
 | `GET compare/?regions=a,b,c&parameter=&period=` | up to 4 regions aligned by year, `null` for gaps |
 | `GET ingestion-runs/latest/` | when the data was last refreshed |
-| `POST chat/` | `{answer, model, tool_calls, data}` |
+| `POST chat/` | `{answer, model, tool_calls, data, cached}` (throttled per IP; 503 if the LLM is unavailable) |
 | `GET /healthz` | liveness plus a database round-trip |
 
 ```bash
@@ -204,8 +205,9 @@ browser tests and a Docker build on every PR.
   compute, which adds under a second to the first query after a quiet spell. Groq's free quota
   (8,000 tokens a minute per model) is spread over three models, and repeated questions come from
   a cache. Heavy use can still see a 503 "busy"; Groq's paid tier removes that limit.
-- The chat rate limit uses in-process memory. That's exact with the single gunicorn process used
-  here, but it needs Redis before scaling out.
+- The chat rate limit and answer cache live in process memory. That's exact with the single
+  gunicorn process used here, and the cache simply starts empty after a deploy, but both need Redis
+  before scaling out to several processes.
 - `/parameters/` scans all observations for year ranges (about 85 ms). An index on
   `(parameter, year)` fixes it if it matters.
 - Swagger UI loads its assets from a CDN (the drf-spectacular default). Charts and fonts are
@@ -223,7 +225,17 @@ browser tests and a Docker build on every PR.
   Re-running is always safe.
 - **Rotate the Groq key:** create a new key at console.groq.com and replace `GROQ_API_KEY` in
   Render → Environment (the service redeploys). Then delete the old key.
-- **Deploy:** push to `main`. Render rebuilds the Docker image from `render.yaml`.
+- **Deploy:** merge to `main`. Render rebuilds the Docker image from `render.yaml` once CI passes.
+- **Keep-awake ping:** to stop it (for example to save free hours), disable **Keep the demo awake**
+  in the Actions tab.
+
+## Releases
+
+- **v1.0.0:** all eight evaluation items: parser, idempotent ingest, models, REST API with
+  OpenAPI, explorer/compare/about UI, grounded LLM chat, Docker, and the Render + Neon deployment.
+- **v1.1.0:** removed the free-tier limits listed at v1.0.0: a monthly scheduled refresh with
+  failure alerts, a keep-awake ping, more chat capacity (answer cache, three-model fallback, 25%
+  fewer prompt tokens per round), and frontend tests (node:test units, Playwright in CI).
 
 ## Attribution
 
