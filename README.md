@@ -146,8 +146,12 @@ How it stays grounded ([ADR-003](docs/adr/003-llm-tool-calling-vs-text-to-sql.md
 5. The response includes every call and the rows it returned, shown in the UI under "Data used".
 
 The default model is `openai/gpt-oss-120b`. I checked it with a real tool-calling request at build
-time; `llama-3.3-70b-versatile` wasn't available to this account. If the model is rate-limited, the
-request retries once on `openai/gpt-oss-20b`.
+time; `llama-3.3-70b-versatile` wasn't available to this account. Groq's free tier limits tokens per
+minute for each model, so a rate-limited request moves straight on to `openai/gpt-oss-20b` and then
+`qwen/qwen3.8-27b`, each with its own quota. A standalone question that has been asked before is
+answered from a cache (keyed on the question, the model and the latest ingest run), which costs no
+quota and still works if Groq is down. Region codes are listed once in the system prompt instead of
+in every tool schema; that cut each round from about 2,200 to 1,650 prompt tokens.
 
 ## Tests
 
@@ -194,8 +198,9 @@ migrations check, a production `collectstatic`, the tests and a Docker build on 
   ([`keep-warm.yml`](.github/workflows/keep-warm.yml)) requests a static file every 10 minutes to
   prevent that, which uses about 744 of the workspace's 750 free hours a month. GitHub can delay
   scheduled runs, so an occasional one-minute cold start is still possible. Neon suspends idle
-  compute, which adds under a second to the first query after a quiet spell. Groq's free quota is
-  about three chat questions a minute (after that the chat answers 503 "busy").
+  compute, which adds under a second to the first query after a quiet spell. Groq's free quota
+  (8,000 tokens a minute per model) is spread over three models, and repeated questions come from
+  a cache. Heavy use can still see a 503 "busy"; Groq's paid tier removes that limit.
 - The chat rate limit uses in-process memory. That's exact with the single gunicorn process used
   here, but it needs Redis before scaling out.
 - `/parameters/` scans all observations for year ranges (about 85 ms). An index on
