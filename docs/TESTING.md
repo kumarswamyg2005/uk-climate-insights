@@ -1,7 +1,8 @@
 # Test strategy
 
-Everything runs with `pytest` against real Postgres 16 (docker compose locally, a service container
-in CI). The DB-level unique constraint and `ON CONFLICT` upserts are therefore exercised for real,
+The Python suite (219 tests) runs with `pytest` against real Postgres 16 (docker compose locally, a
+service container in CI). The JavaScript helpers have 13 `node --test` unit tests, and 8 Playwright
+tests drive a real browser (see Frontend below). The DB-level unique constraint and `ON CONFLICT` upserts are therefore exercised for real,
 not emulated. No test touches the network: Met Office HTTP is mocked with `responses`, and the LLM
 with a fake `LLMClient`.
 
@@ -24,7 +25,7 @@ Coverage gate: **85% line + branch on `climate/`** (`fail_under` in `pyproject.t
 | `ingest.py` + command | integration | run twice gives the same count (idempotent); changed value updated, not duplicated; withdrawn value pruned; one 404 gives run `partial` with other files stored; all failing gives `failed`; parse error leaves existing rows untouched; provenance set; command filters and rejects unknown codes | 2, 5, 6 |
 | models | integration | unique key and period check enforced by Postgres (bypassing the ORM's validation) | 3 |
 | API | integration | happy path per endpoint; unknown region/parameter/period gives 400 listing valid values; `year_from > year_to` gives 400; >4 compare regions gives 400; empty gives 200 `[]`; pagination; CSV content type and header row; compare aligns years with nulls; summary extremes match the fixture; units in every value response; non-GET gives 405 | 4, 7, 8 |
-| chat | unit + integration | tools reject bad args; service runs tool calls with a fake client and returns grounded `data`; an ungrounded numeric answer is replaced; max rounds; no key gives 503; provider rate limit or timeout gives 503; throttle gives 429; long input gives 400; history can't inject `system`/`tool` roles | 9-12 |
+| chat | unit + integration | tools reject bad args; service runs tool calls with a fake client and returns grounded `data`; an ungrounded numeric answer is replaced; max rounds; no key gives 503; provider rate limit or timeout gives 503; throttle gives 429; long input gives 400; history can't inject `system`/`tool` roles; the fallback chain moves on after a 429; a repeated question is served from the cache, a new ingest invalidates it, give-ups and follow-ups aren't cached | 9-12 |
 | pages | smoke | `/`, `/compare/`, `/about/`, `/healthz`, `/api/docs/` return 200 | - |
 
 ## Frontend

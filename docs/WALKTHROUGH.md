@@ -83,7 +83,9 @@ Two ideas hold it together:
 2. `ChatView` applies DRF's throttle (10 a minute per client IP), then validates the body. The
    message is capped at 500 characters. History is at most 6 turns of at most 1,000 characters,
    and roles can only be `user` or `assistant`, so nobody can inject a `system` message.
-3. `service.answer()` builds the messages: a system prompt (rules, codes, and the real year ranges
+3. A standalone question (no history) that was asked before is answered from the cache. The key is
+   the normalised question plus the model and the latest ingest run, so new data means a fresh
+   answer. Otherwise `service.answer()` builds the messages: a system prompt (rules, codes, and the real year ranges
    from the database), the history, and the question.
 4. `GroqClient.complete()` sends them with six tool schemas. The model replies with either text or
    tool calls, for example `get_extreme(region=Wales, parameter=Tmean, period=win, kind=min)`.
@@ -94,7 +96,8 @@ Two ideas hold it together:
    rounds, with a 30-second deadline).
 7. When the model answers in text, `_grounded()` checks one rule in code: if the answer contains
    numbers but no tool call succeeded, it's replaced with a refusal.
-8. The response is `{answer, model, tool_calls, data}`. The UI shows the answer and, collapsed,
+8. The response is `{answer, model, tool_calls, data, cached}`, and a finished answer is stored in
+   the cache for 24 hours. The UI shows the answer and, collapsed,
    the exact rows under "Data used".
 
 ## 4. The files
@@ -112,7 +115,7 @@ Two ideas hold it together:
 | `climate/parsing.py` | text to `ParsedSeries(records, preamble, last_updated)` | the graded parsing item |
 | `climate/fetching.py` | URL builder, session with User-Agent, retries | polite and resilient downloads |
 | `climate/ingest.py` | `run_ingest()`, catalog sync, upsert + prune, background runner | orchestration and failure isolation |
-| `climate/management/commands/ingest_metoffice.py` | CLI with `--regions`, `--parameters`, `--if-needed`, summary table | cron, Docker entrypoint, humans |
+| `climate/management/commands/ingest_metoffice.py` | CLI with `--regions`, `--parameters`, `--if-needed`, `--strict`, summary table | scheduled job, Docker entrypoint, humans |
 | `climate/admin.py` | read-only admin plus the **Run ingest now** button | browse data and trigger a refresh |
 | `climate/queries.py` | validators and read functions: series, summary, extremes, compare | the shared read path |
 | `climate/api/` | DRF views, output and doc serializers, django-filter set, URLs | the REST API and its OpenAPI schema |
@@ -123,7 +126,12 @@ Two ideas hold it together:
 | `climate/templates/`, `climate/static/` | HTML, CSS (DESIGN.md tokens), JS, vendored Chart.js, fonts | the frontend |
 | `Dockerfile`, `docker/entrypoint.sh`, `docker-compose.yml` | image, boot sequence, local stack | |
 | `render.yaml` | the Render Blueprint | deployment as code |
-| `tests/` | 208 tests, real Met Office fixtures | |
+| `.github/workflows/ci.yml` | lint, migrations check, prod `collectstatic`, pytest with coverage, JS unit tests, browser tests, Docker build | every PR and push to `main` |
+| `.github/workflows/ingest.yml` | monthly `ingest_metoffice --strict` against production, plus a manual button | keeps data fresh; failure emails the owner |
+| `.github/workflows/keep-warm.yml` | requests a static file every 10 minutes | stops the free Render service from sleeping |
+| `tests/` | 219 Python tests with real Met Office fixtures | |
+| `tests/js/` | 13 unit tests for the chart and form helpers (`node --test`) | JS logic without a browser |
+| `tests/e2e/` | 8 Playwright browser tests against the live test server (`pytest -m e2e`) | what a user actually sees |
 
 ## 5. Decisions and what was rejected
 
@@ -189,7 +197,8 @@ region. EC2 would mean managing TLS, a proxy, patching and costs after 12 months
 **Run locally:** `docker compose up --build`, then open http://localhost:8000. The first boot
 downloads the data (about 2 minutes).
 
-**Test:** `docker compose up -d db`, then `pytest --cov`, then `ruff check .`.
+**Test:** `docker compose up -d db`, then `pytest --cov` (219 tests), `node --test tests/js/*.test.mjs`
+(13), `python -m playwright install chromium && pytest -m e2e` (8), and `ruff check .`.
 
 **Monthly refresh:** `.github/workflows/ingest.yml` runs `ingest_metoffice --strict` against the
 production database on the 2nd of each month. A partial or failed run fails the job, and GitHub
@@ -356,4 +365,5 @@ answer (Wales's coldest winter, 1963, -0.45 °C) was checked against the raw Met
    came from. Then ask "What's the weather tomorrow?" and it declines. "The model can only call six
    read-only functions; numbers without data get blocked in code."
 5. **Engineering (30 s).** Open `/api/docs/`, then the GitHub repo: PR per step, CI with Postgres
-   and a Docker build, 208 tests, the invariants table in `docs/TESTING.md`.
+   and a Docker build, 219 Python + 13 JavaScript + 8 browser tests, the invariants table in
+   `docs/TESTING.md`, and the monthly refresh workflow in the Actions tab.
