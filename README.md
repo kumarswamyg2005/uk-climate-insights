@@ -157,7 +157,9 @@ in every tool schema; that cut each round from about 2,200 to 1,650 prompt token
 
 ```bash
 docker compose up -d db
-pytest --cov            # 208 tests, 99% line + branch coverage of climate/, gate at 85%
+pytest --cov                          # 219 tests, 99% line + branch coverage of climate/ (gate 85%)
+node --test tests/js/*.test.mjs       # 13 unit tests for the chart and form helpers
+python -m playwright install chromium && pytest -m e2e   # 8 browser tests
 ruff check . && ruff format --check .
 ```
 
@@ -165,7 +167,8 @@ Tests run against real Postgres. The parser tests use five real Met Office files
 [`tests/fixtures/`](tests/fixtures/). HTTP is mocked with `responses`, and the LLM with a fake
 client, so nothing touches the network. [docs/TESTING.md](docs/TESTING.md) maps every rule in
 [`climate/invariants.py`](climate/invariants.py) to the tests that cover it. CI runs lint, a
-migrations check, a production `collectstatic`, the tests and a Docker build on every PR.
+migrations check, a production `collectstatic`, the Python tests, the JavaScript unit tests, the
+browser tests and a Docker build on every PR.
 
 ## Design decisions
 
@@ -207,7 +210,6 @@ migrations check, a production `collectstatic`, the tests and a Docker build on 
   `(parameter, year)` fixes it if it matters.
 - Swagger UI loads its assets from a CDN (the drf-spectacular default). Charts and fonts are
   vendored.
-- The chart JavaScript is checked in a real browser, not by unit tests.
 - Only the latest value is kept; revisions overwrite. A history table would keep them.
 
 ## Operations

@@ -222,7 +222,6 @@ Groq. For a local `.env`, write `GROQ_API_KEY=gsk_...` with no space after `=`.
 - **Auth and quotas** for the chat if it were public at scale: API keys or login, and daily quotas
   per user.
 - **More sources.** Station data or HadUK-Grid would need a `source` dimension on observations.
-- **Frontend tests.** A small Playwright suite for the explorer and compare pages.
 - **Value history.** Revisions overwrite today. A history table would allow "what did we show
   last month".
 

@@ -27,10 +27,20 @@ Coverage gate: **85% line + branch on `climate/`** (`fail_under` in `pyproject.t
 | chat | unit + integration | tools reject bad args; service runs tool calls with a fake client and returns grounded `data`; an ungrounded numeric answer is replaced; max rounds; no key gives 503; provider rate limit or timeout gives 503; throttle gives 429; long input gives 400; history can't inject `system`/`tool` roles | 9-12 |
 | pages | smoke | `/`, `/compare/`, `/about/`, `/healthz`, `/api/docs/` return 200 | - |
 
+## Frontend
+
+| Suite | Runner | What it covers |
+|---|---|---|
+| `tests/js/common.test.mjs` | Node's built-in `node --test` (no dependencies) | rolling mean and its gap handling, stripe colours (neutral at the mean, clamped extremes, air frost inverted, all-equal series), fixed decimals, signed trends, titles and the winter note, year validation, DRF error messages |
+| `tests/e2e/test_browser.py` | Playwright (Chromium) against Django's live test server, real fixture data | explorer draws stripes, chart, stats and table; changing the selection updates the URL, title and CSV link; sorting; inline year errors and the empty state; compare keeps each region's colour when another is removed; chat shows the answer and "Data used"; the unconfigured-chat message; the mobile filters sheet; no console errors |
+
+Browser tests are opt-in locally (`python -m playwright install chromium`, then `pytest -m e2e`)
+and run in their own CI job. Mutation check: colouring compare lines by position instead of by
+region fails the compare test.
+
 ## Deliberately not tested
 
-- Chart rendering and DOM behaviour in the browser. They're verified by hand against DESIGN.md.
-  A Playwright suite is the next step if the UI grows.
+- Pixel-level visual regression. Layout is checked by eye against DESIGN.md.
 - The live Met Office and Groq APIs. The real ingest and three live chat questions are part of the
   release checklist instead, so CI stays deterministic and offline.
 
