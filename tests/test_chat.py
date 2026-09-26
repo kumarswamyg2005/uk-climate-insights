@@ -15,6 +15,7 @@ from climate.catalog import PARAMETER_CODES, REGION_CODES
 from climate.chat import llm, service, tools
 from climate.chat.llm import GroqClient, LLMReply, LLMUnavailable, ToolCall
 from climate.ingest import sync_catalog
+from climate.models import IngestionRun
 
 from .factories import IngestionRunFactory, ObservationFactory
 
@@ -72,8 +73,9 @@ def test_tool_schemas_whitelist_the_catalog():
     specs = {spec["function"]["name"]: spec["function"]["parameters"] for spec in tools.TOOL_SPECS}
     assert set(specs) == set(tools.FUNCTIONS)
     extreme = specs["get_extreme"]
-    assert extreme["properties"]["region"]["enum"] == list(REGION_CODES)
     assert extreme["properties"]["parameter"]["enum"] == list(PARAMETER_CODES)
+    # Region codes are listed once in the system prompt (token budget) and validated server-side.
+    assert "enum" not in extreme["properties"]["region"]
     assert extreme["additionalProperties"] is False
     assert specs["compare_regions"]["properties"]["regions"]["maxItems"] == 4
 
@@ -149,7 +151,7 @@ def test_system_prompt_lists_codes_and_real_year_ranges(scotland_rain):
     service.answer("hi", [], fake)
     prompt = fake.requests[0]["messages"][0]
     assert prompt["role"] == "system"
-    assert "England_SW_and_S_Wales" in prompt["content"]
+    assert all(f"{code}:" in prompt["content"] for code in REGION_CODES)
     assert "Rainfall: Rainfall, mm, 1955-2011" in prompt["content"]  # from the database
     assert "Tmax: Max temperature, °C, not loaded yet" in prompt["content"]
     assert "Never use your own knowledge" in prompt["content"]
@@ -252,16 +254,23 @@ def test_groq_client_maps_tool_calls():
     assert create.call_args.kwargs["model"] == "primary"
 
 
-def test_groq_rate_limit_falls_back_to_the_second_model():
-    client = GroqClient("key", "primary", 5, fallback_model="backup")
-    create = mock.Mock(side_effect=[groq_error(groq.RateLimitError, 429), groq_reply(content="ok")])
+def test_groq_rate_limit_moves_down_the_fallback_chain():
+    client = GroqClient("key", "primary", 5, fallback_models=("second", "third"))
+    create = mock.Mock(
+        side_effect=[
+            groq_error(groq.RateLimitError, 429),
+            groq_error(groq.RateLimitError, 429),
+            groq_reply(content="ok"),
+        ]
+    )
     client._client = SimpleNamespace(
         chat=SimpleNamespace(completions=SimpleNamespace(create=create))
     )
 
     assert client.complete([], []).content == "ok"
-    assert [c.kwargs["model"] for c in create.call_args_list] == ["primary", "backup"]
-    assert client.model == "backup"
+    assert [c.kwargs["model"] for c in create.call_args_list] == ["primary", "second", "third"]
+    assert client.model == "third"
+    assert create.call_args.kwargs["max_completion_tokens"] <= 1000  # fits qwen's output quota
 
 
 @pytest.mark.parametrize(
@@ -297,10 +306,10 @@ def test_groq_reply_without_choices_is_unavailable_not_a_crash():
 def test_default_client_reads_settings(settings):
     settings.GROQ_API_KEY = "k"
     settings.LLM_MODEL = "m1"
-    settings.LLM_FALLBACK_MODEL = "m2"
+    settings.LLM_FALLBACK_MODELS = ["m2", "m3"]
     client = llm.default_client()
     assert client.model == "m1"
-    assert client._models == ["m1", "m2"]
+    assert client._models == ["m1", "m2", "m3"]
 
 
 # --- endpoint ---------------------------------------------------------------------------------
@@ -318,7 +327,7 @@ def test_chat_endpoint_returns_answer_calls_and_data(client, scotland_rain):
         response = post(client, {"message": "Wettest year in Scotland?"})
     assert response.status_code == 200
     body = response.json()
-    assert set(body) == {"answer", "model", "tool_calls", "data"}
+    assert set(body) == {"answer", "model", "tool_calls", "data", "cached"}
     assert body["tool_calls"][0]["name"] == "get_extreme"
     assert body["data"][0]["result"]["rows"][0] == {"year": 1990, "value": 1891.8}
 
@@ -373,3 +382,57 @@ def test_chat_is_rate_limited_per_client(client, monkeypatch):
 
 def test_chat_is_post_only(client):
     assert client.get(CHAT).status_code == 405
+
+
+# --- answer cache -----------------------------------------------------------------------------
+
+
+def ask(client, message, **extra):
+    return client.post(CHAT, {"message": message, **extra}, content_type="application/json")
+
+
+def test_a_repeated_question_is_answered_from_the_cache(client, scotland_rain):
+    fake = FakeLLM(call("get_extreme", **WETTEST), say("1990 was wettest."))
+    with mock.patch.object(llm, "default_client", return_value=fake):
+        first = ask(client, "Which was the wettest year in Scotland?").json()
+        again = ask(client, "  which was the WETTEST year in scotland ").json()
+    assert first["cached"] is False
+    assert again["cached"] is True
+    assert again["answer"] == first["answer"] == "1990 was wettest."
+    assert again["data"] == first["data"]
+    assert len(fake.requests) == 2  # both LLM rounds came from the first question only
+
+
+def test_cached_answers_still_work_when_the_provider_is_down(client, settings):
+    with mock.patch.object(llm, "default_client", return_value=FakeLLM(say("Sure."))):
+        ask(client, "hello")
+    settings.GROQ_API_KEY = ""
+    assert ask(client, "hello").json()["answer"] == "Sure."
+    assert ask(client, "something new").status_code == 503
+
+
+def test_follow_up_questions_are_not_cached(client):
+    history = [{"role": "user", "content": "Wales?"}, {"role": "assistant", "content": "Yes."}]
+    with mock.patch.object(
+        llm, "default_client", side_effect=lambda: FakeLLM(say("Fine."))
+    ) as factory:
+        ask(client, "And Scotland?", history=history)
+        ask(client, "And Scotland?", history=history)
+    assert factory.call_count == 2
+
+
+def test_a_give_up_is_not_cached(client):
+    replies = iter([FakeLLM(say("")), FakeLLM(say("Now it works."))])
+    with mock.patch.object(llm, "default_client", side_effect=lambda: next(replies)):
+        assert ask(client, "hard question").json()["answer"] == service.GAVE_UP
+        assert ask(client, "hard question").json()["answer"] == "Now it works."
+
+
+def test_a_new_ingest_run_invalidates_cached_answers(client):
+    IngestionRunFactory(status=IngestionRun.Status.SUCCESS)
+    replies = iter([FakeLLM(say("Old data.")), FakeLLM(say("New data."))])
+    with mock.patch.object(llm, "default_client", side_effect=lambda: next(replies)):
+        assert ask(client, "question").json()["answer"] == "Old data."
+        assert ask(client, "question").json()["cached"] is True
+        IngestionRunFactory(status=IngestionRun.Status.SUCCESS)  # fresh data arrived
+        assert ask(client, "question").json()["answer"] == "New data."
