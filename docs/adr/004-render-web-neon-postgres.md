@@ -74,6 +74,13 @@ costs one extra dashboard and a few milliseconds per query. Staying in one regio
   first query after Neon suspends adds under a second.
 - Revisit: a paid Render instance (no spin-down), or Render Postgres, if this became a real service.
 
+## Update, 2026-09-26 (v1.1.0)
+
+Two GitHub Actions workflows now cover what the free tiers lack. `ingest.yml` refreshes the data on
+the 2nd of each month and alerts on a partial run. `keep-warm.yml` requests a static file every 10
+minutes, so the Render service doesn't sleep (about 744 of the 750 free hours a month); Neon is
+left free to suspend because the ping skips the database.
+
 ## Action items
 
 1. [x] `render.yaml`: Docker web service, `/healthz` health check, secrets marked `sync: false`.
