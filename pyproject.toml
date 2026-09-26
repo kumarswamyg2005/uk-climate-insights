@@ -14,7 +14,9 @@ ignore = ["RUF012"]
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "config.settings.dev"
 testpaths = ["tests"]
-addopts = "-ra --strict-markers"
+# Browser tests are opt-in: `pytest -m e2e` (after `python -m playwright install chromium`).
+addopts = "-ra --strict-markers -m 'not e2e'"
+markers = ["e2e: real-browser tests with Playwright against the live test server"]
 
 [tool.coverage.run]
 source = ["climate"]
