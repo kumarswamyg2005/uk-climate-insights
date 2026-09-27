@@ -57,7 +57,7 @@ flowchart LR
     DB[(PostgreSQL 16)]
     LLM[Groq API<br/>chat completions + tools]
     USER((Browser))
-    GHA[GitHub Actions<br/>monthly ingest, keep-awake ping]
+    GHA[GitHub Actions<br/>monthly ingest]
 
     MO -->|HTTPS GET, polite UA + delay| FETCH
     CMD --> ING
@@ -265,7 +265,7 @@ flowchart LR
     E -->|HTTPS| G[Groq API]
     U((Browser)) -->|HTTPS| Render
     A[GitHub Actions] -->|monthly ingest, DATABASE_URL secret| N
-    A -->|static file every 10 min| Render
+    E -->|own public URL every 10 min, keeps the instance awake| Render
 ```
 
 The image is built once per push, with static files collected at build time and served by
@@ -274,10 +274,12 @@ production. Secrets (`SECRET_KEY`, `DATABASE_URL`, `GROQ_API_KEY`) live in Rende
 never in the repo. See [ADR-004](adr/004-render-web-neon-postgres.md) for why the database is on
 Neon.
 
-Two scheduled GitHub Actions workflows complete the picture. `ingest.yml` runs the ingest against
-Neon on the 2nd of each month and fails loudly on anything short of 119/119 files. `keep-warm.yml`
-requests a static file every 10 minutes, so the free Render service doesn't sleep; it skips the
-database, so Neon can still suspend.
+A scheduled GitHub Actions workflow, `ingest.yml`, runs the ingest against Neon on the 2nd of each
+month and fails loudly on anything short of 119/119 files. The web instance keeps itself awake:
+`docker/keep_awake.py`, started by the entrypoint only on Render, requests a static file through
+the service's own public URL every 10 minutes, which Render counts as traffic. (A GitHub Actions
+schedule was tried first and ran 8 times in 36 hours instead of every 10 minutes.) The ping skips
+the database, so Neon can still suspend.
 
 ## 8. Load estimate
 

@@ -76,10 +76,12 @@ costs one extra dashboard and a few milliseconds per query. Staying in one regio
 
 ## Update, 2026-09-26 (v1.1.0)
 
-Two GitHub Actions workflows now cover what the free tiers lack. `ingest.yml` refreshes the data on
-the 2nd of each month and alerts on a partial run. `keep-warm.yml` requests a static file every 10
-minutes, so the Render service doesn't sleep (about 744 of the 750 free hours a month); Neon is
-left free to suspend because the ping skips the database.
+A GitHub Actions workflow, `ingest.yml`, refreshes the data on the 2nd of each month and alerts on
+a partial run. To stop the free instance sleeping, a scheduled `keep-warm.yml` workflow was tried
+first, but GitHub ran it only 8 times in 36 hours instead of every 10 minutes, so it was replaced by
+`docker/keep_awake.py`: a loop inside the instance that requests a static file through the
+service's own public URL every 10 minutes (about 744 of the 750 free hours a month). The ping skips
+the database, so Neon is still free to suspend.
 
 ## Action items
 

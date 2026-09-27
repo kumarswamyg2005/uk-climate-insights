@@ -16,6 +16,10 @@ fi
 # mid-ingest, the next boot runs it again (upserts make that safe).
 python manage.py ingest_metoffice --if-needed &
 
+# Free Render instances sleep after 15 idle minutes; this visits our own public URL every 10.
+# It exits at once where RENDER_EXTERNAL_URL isn't set (local runs, Docker Compose, CI).
+python docker/keep_awake.py &
+
 # One process, four threads: the chat throttle's in-memory counters are then exact, and a slow
 # LLM call doesn't block other requests. Timeout > chat deadline (30 s) + one LLM call (15 s).
 exec gunicorn config.wsgi \
