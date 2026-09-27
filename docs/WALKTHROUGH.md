@@ -128,7 +128,7 @@ Two ideas hold it together:
 | `render.yaml` | the Render Blueprint | deployment as code |
 | `.github/workflows/ci.yml` | lint, migrations check, prod `collectstatic`, pytest with coverage, JS unit tests, browser tests, Docker build | every PR and push to `main` |
 | `.github/workflows/ingest.yml` | monthly `ingest_metoffice --strict` against production, plus a manual button | keeps data fresh; failure emails the owner |
-| `.github/workflows/keep-warm.yml` | requests a static file every 10 minutes | stops the free Render service from sleeping |
+| `docker/keep_awake.py` | on Render only, requests a static file through the service's own URL every 10 minutes | stops the free Render service from sleeping (a GitHub schedule couldn't: it ran 8 times in 36 hours) |
 | `tests/` | 219 Python tests with real Met Office fixtures | |
 | `tests/js/` | 13 unit tests for the chart and form helpers (`node --test`) | JS logic without a browser |
 | `tests/e2e/` | 8 Playwright browser tests against the live test server (`pytest -m e2e`) | what a user actually sees |

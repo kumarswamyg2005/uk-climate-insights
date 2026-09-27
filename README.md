@@ -11,7 +11,7 @@ without any error. The chat runs on Groq's free tier. It spreads the quota over 
 answers repeated questions from a cache, though heavy use can still hit the limit. The table below
 maps each evaluation item to the code.
 
-**Live:** https://uk-climate-insights.onrender.com (free tier, kept awake by a scheduled ping)
+**Live:** https://uk-climate-insights.onrender.com (free tier; the service pings itself to stay awake)
 
 **API docs:** [/api/docs/](https://uk-climate-insights.onrender.com/api/docs/) ·
 **Architecture:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) ·
@@ -33,7 +33,7 @@ maps each evaluation item to the code.
 | 4 | REST API | [`climate/api/`](climate/api/), [`climate/queries.py`](climate/queries.py) | DRF + django-filter, whitelisted params (400 on bad input), pagination, CSV, OpenAPI at `/api/docs/` |
 | 5 | Frontend | [`climate/templates/climate/`](climate/templates/climate/), [`climate/static/climate/`](climate/static/climate/) | Explorer (stripes, chart, stats, table), compare, about; shareable URLs; dark mode; mobile; JS unit and Playwright browser tests |
 | 6 | Docker | [`Dockerfile`](Dockerfile), [`docker/entrypoint.sh`](docker/entrypoint.sh), [`docker-compose.yml`](docker-compose.yml) | Multi-stage, non-root, healthcheck; `docker compose up` loads the data on first boot |
-| 7 | Cloud deployment | [`render.yaml`](render.yaml), [ADR-004](docs/adr/004-render-web-neon-postgres.md) | Render (Docker web service) + Neon Postgres; monthly data refresh and keep-awake ping as GitHub Actions |
+| 7 | Cloud deployment | [`render.yaml`](render.yaml), [ADR-004](docs/adr/004-render-web-neon-postgres.md) | Render (Docker web service) + Neon Postgres; monthly data refresh as a GitHub Action; the instance keeps itself awake |
 | 8 | LLM chat | [`climate/chat/`](climate/chat/), `POST /api/v1/chat/` | Groq tool calling over validated query functions; answers carry their data; 503 when unavailable |
 | + | Git | [pull requests](https://github.com/kumarswamyg2005/uk-climate-insights/pulls?q=is%3Apr) | One branch and PR per step, conventional commits, CI on every PR, tags `v1.0.0` and `v1.1.0` |
 | + | Public cloud | see Live above | |
@@ -198,10 +198,12 @@ browser tests and a Docker build on every PR.
 
 - **The admin ingest runs in a background thread** and dies if the worker restarts. A job runner
   would make it durable.
-- **Free tiers:** Render stops the web service after 15 idle minutes. A scheduled workflow
-  ([`keep-warm.yml`](.github/workflows/keep-warm.yml)) requests a static file every 10 minutes to
-  prevent that, which uses about 744 of the workspace's 750 free hours a month. GitHub can delay
-  scheduled runs, so an occasional one-minute cold start is still possible. Neon suspends idle
+- **Free tiers:** Render stops the web service after 15 idle minutes, and the next visitor waits
+  about a minute. A scheduled GitHub Actions ping didn't prevent it (GitHub ran it 8 times in 36
+  hours instead of every 10 minutes), so the instance now pings itself:
+  [`docker/keep_awake.py`](docker/keep_awake.py) requests a static file through its own public URL
+  every 10 minutes. This uses about 744 of the workspace's 750 free hours a month. After a restart
+  or deploy, the first visit can still take up to a minute. Neon suspends idle
   compute, which adds under a second to the first query after a quiet spell. Groq's free quota
   (8,000 tokens a minute per model) is spread over three models, and repeated questions come from
   a cache. Heavy use can still see a 503 "busy"; Groq's paid tier removes that limit.
@@ -226,15 +228,15 @@ browser tests and a Docker build on every PR.
 - **Rotate the Groq key:** create a new key at console.groq.com and replace `GROQ_API_KEY` in
   Render → Environment (the service redeploys). Then delete the old key.
 - **Deploy:** merge to `main`. Render rebuilds the Docker image from `render.yaml` once CI passes.
-- **Keep-awake ping:** to stop it (for example to save free hours), disable **Keep the demo awake**
-  in the Actions tab.
+- **Keep-awake ping:** runs inside the web service only on Render (it needs `RENDER_EXTERNAL_URL`).
+  To stop it, remove the `keep_awake.py` line from [`docker/entrypoint.sh`](docker/entrypoint.sh).
 
 ## Releases
 
 - **v1.0.0:** all eight evaluation items: parser, idempotent ingest, models, REST API with
   OpenAPI, explorer/compare/about UI, grounded LLM chat, Docker, and the Render + Neon deployment.
 - **v1.1.0:** removed the free-tier limits listed at v1.0.0: a monthly scheduled refresh with
-  failure alerts, a keep-awake ping, more chat capacity (answer cache, three-model fallback, 25%
+  failure alerts, a self-ping that keeps the free instance awake, more chat capacity (answer cache, three-model fallback, 25%
   fewer prompt tokens per round), and frontend tests (node:test units, Playwright in CI).
 
 ## Attribution
